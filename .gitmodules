@@ -1,0 +1,6 @@
+[submodule "klib"]
+	path = klib
+	url = git@github.com:attractivechaos/klib.git
+[submodule "sdsl-lite"]
+	path = sdsl-lite
+	url = git@github.com:simongog/sdsl-lite.git

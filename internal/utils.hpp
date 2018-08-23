@@ -86,6 +86,19 @@ ulint get_patterns_length(string header){
 
 }
 
+class Timer {
+	using TpType = std::chrono::system_clock::time_point;
+	std::string name_;
+	TpType start_, stop_;
+public:
+	Timer(std::string &&name=""): name_{std::move(name)}, start_(std::chrono::system_clock::now()) {}
+	void stop() {stop_ = std::chrono::system_clock::now();}
+	void restart() {start_ = std::chrono::system_clock::now();}
+	void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+	~Timer() {stop(); /* hammertime */ report();}
+	void rename(const char *name) {name_ = name;}
+};
+
 
 
 #endif /* UTILS_RI_HPP_ */
