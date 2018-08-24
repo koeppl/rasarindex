@@ -7,7 +7,7 @@
 #include "klib/kseq.h"
 KSEQ_INIT(gzFile, gzread);
 
-#include "internal/r_index.hpp"
+#include "internal/ri_aligner.hpp"
 
 #include "internal/utils.hpp"
 
@@ -15,14 +15,7 @@ using namespace ri;
 using namespace std;
 using namespace std::literals;
 
-typedef r_index<> idx_t;
-
-struct ri_opts_t {
-    ri_opts_t() {};
-    ulint max_hits = (ulint)-1;
-    ulint max_range = (ulint)-1;
-    uint z = 0;
-};
+typedef ri_aligner idx_t;
 
 struct sam_t {
     ~sam_t(){
@@ -142,6 +135,7 @@ size_t count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sam) {
     cout << seq->name.s << "\t" << count << "\n";
     return count;
 }
+*/
 
 size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     sam_t* sam = &(sams.at(0));
@@ -166,6 +160,7 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     return sam->locs.size();
 }
 
+/*
 size_t piecewise_count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     (void) sams;
     idx.piecewise_count(std::string(seq->seq.s), opts, [&seq](const string& P, const ri::range_t range, const uint start, const uint end) {
@@ -205,7 +200,6 @@ size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& 
     // cerr << seq->name.s << "has " << sams.size() << " pieces." << endl;;
     return sams.size();
 }
-*/
 
 size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     std::string s(seq->seq.s);
@@ -213,18 +207,18 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     vector<ulint> occs = idx.locate_all(s);
     return occs.size();
 }
+*/
 
 template<size_t (*F)(idx_t&, kseq_t*, ri_opts_t, vector<sam_t>&)>
 void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri_opts_t opts){
     std::string text;
 
     cerr << "loading fwd/rev r-index" << endl;
-    // idx_t idx(string(idx_pre).append(".ri"), string(idx_pre).append(".rev.ri"));
-    idx_t idx;
-    std::ifstream ifs(string(idx_pre).append(".ri"));
-    bool f;
-    ifs.read((char*)&f, sizeof(f));
-    idx.load(ifs);
+    idx_t idx(string(idx_pre).append(".ri")); // , string(idx_pre).append(".rev.ri"));
+    // idx_t idx;
+    // std::ifstream ifs(string(idx_pre).append(".ri"));
+    // bool f;
+    // ifs.read((char*)&f, sizeof(f));
     
     // LOAD IDX HERE
 

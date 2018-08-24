@@ -118,12 +118,33 @@ public:
             return {1,0};
         //number of c before the interval
         ulint c_before = bwt.rank(rn.first,c);
-        //number of c inside the interval rn
+        // number of c inside the interval rn
+        // if rn.1 == rn.2, then this redudant rank query _should_ be avoided,
+        // but this case won't be encountered too often if n/r is high
         ulint c_inside = bwt.rank(rn.second+1,c) - c_before;
         //if there are no c in the interval, return empty range
         if(c_inside==0) return {1,0};
         ulint l = F[c] + c_before;
         return {l,l+c_inside-1};
+    }
+
+    pair<range_t, ulint> LF_w_loc(const range_t range, const uchar c, const ulint k) {
+        ulint k1;
+        range_t range1 = LF(range, c);
+        if (range1.first <= range1.second) {
+            if (bwt[range.second] == c) {
+                k1 = k-1;
+            } else {
+                ulint rnk = bwt.rank(range.second, c);
+                rnk--;
+                ulint j = bwt.select(rnk, c);
+                ulint run_of_j = bwt.run_of_position(j);
+                k1 = samples_last[run_of_j];
+            } 
+        } else {
+            return {{1,0},0};
+        } 
+        return {range1, k1};
     }
 
     /*
@@ -223,13 +244,15 @@ public:
      * }
      */
 
-    vector<ulint>& locate_range(ulint L, ulint R, ulint k, vector<ulint>& OCC) {
+    vector<ulint>& locate_range(const ulint L, const ulint R, const ulint k, ulint max_hits, vector<ulint>& OCC) {
         ulint n_occ = R>=L ? (R-L)+1 : 0;
+        if (n_occ > max_hits) n_occ = max_hits;
+        ulint k1 = k;
         if(n_occ>0){
-            OCC.push_back(k);
+            OCC.push_back(k1);
             for(ulint i=1;i<n_occ;++i){
-                k = Phi(k);
-                OCC.push_back(k);
+                k1 = Phi(k1);
+                OCC.push_back(k1);
             }
         }
         return OCC;
@@ -340,6 +363,10 @@ public:
         return tot_bytes;
     }
 
+    ulint get_last_run_sample() {
+        return (samples_last[r-1]+1) % bwt.size();
+    }
+
 private:
 
     /*
@@ -348,24 +375,25 @@ private:
      * returns <range, j,k>
      *
      */
-    pair<range_t, ulint> old_count_and_get_occ(const string &P){
-        //k = SA[r]
+    pair<range_t, ulint> count_and_get_occ(const string &P) {
         ulint k = 0;
         range_t range = full_range();
         assert(r-1 < samples_last.size());
         k = (samples_last[r-1]+1) % bwt.size();
         range_t range1;
         ulint m = P.size();
+        bool cur_good = (bwt[range.second] == P[m-1]);
+        bool next_good;
         for(ulint i=0;i<m and range.second>=range.first;++i){
             uchar c = P[m-i-1];
             range1 = LF(range,c);
-            //if suffix can be left-extended with char
-            if(range1.first <= range1.second){
-                if(bwt[range.second] == c){
+            next_good = ((i == m-1) ? 1 : (bwt[range1.second] == P[m-i-2]));
+            if(range1.first <= range1.second) {
+                if(cur_good) { 
                     // last c is at the end of range. Then, we have this sample by induction!
                     assert(k>0);
                     k--;
-                }else{
+                } else if (next_good) { // this condition can be ommitted, it's more useful for smaller n/r
                     //find last c in range (there must be one because range1 is not empty)
                     //and get its sample (must be sampled because it is at the end of a run)
                     //note: by previous check, bwt[range.second] != c, so we can use argument range.second
@@ -382,46 +410,12 @@ private:
                     ulint run_of_j = bwt.run_of_position(j);
                     k = samples_last[run_of_j];
                 }
-            } else return {{1,0},0};
-            range = range1;
-        }
-        return {range, k};
-    }
-
-    pair<range_t, ulint> count_and_get_occ(const string &P) {
-        // loop restraints add a very minor speedup
-        ulint k = 0;
-        range_t range = full_range();
-        assert(r-1 < samples_last.size());
-        k = (samples_last[r-1]+1) % bwt.size();
-        range_t range1;
-        ulint m = P.size();
-        bool cur_good = (bwt[range.second] == P[m-1]);
-        bool next_good;
-        for(ulint i=0;i<m and range.second>=range.first;++i){
-            uchar c = P[m-i-1];
-            range1 = LF(range,c);
-            next_good = ((i == m-1) ? 1 : (bwt[range1.second] == P[m-i-2]));
-            if(range1.first <= range1.second) {
-                if(cur_good) { 
-                    assert(k>0);
-                    k--;
-                } else if (next_good) { 
-                    ulint rnk = bwt.rank(range.second,c); // >= 4 selects
-                    assert(rnk>0);
-                    rnk--;
-                    ulint j = bwt.select(rnk,c); // >= 4 selects
-                    assert(j>=range.first and j < range.second);
-                    ulint run_of_j = bwt.run_of_position(j); // > 3 selects
-                    k = samples_last[run_of_j];
-                }
             } else {
                 return {{1,0}, 0};
             }
             cur_good = next_good;
             range = range1;
         }
-        assert(ret == old_count_and_get_occ(P));
         return {range, k};
     }
 
