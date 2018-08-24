@@ -258,9 +258,23 @@ public:
         return OCC;
     }
 
+    vector<ulint>& locate_range(const ulint L, const ulint R, const ulint k, vector<ulint>& OCC) {
+        ulint n_occ = R>=L ? (R-L)+1 : 0;
+        ulint k1 = k;
+        if(n_occ>0){
+            OCC.push_back(k1);
+            for(ulint i=1;i<n_occ;++i){
+                k1 = Phi(k1);
+                OCC.push_back(k1);
+            }
+        }
+        return OCC;
+    }
+
     /*
      * locate all occurrences of P and return them in an array
      * (space consuming if result is big).
+     * TODO: add max-hits option
      */
     vector<ulint> locate_all(string& P){
         vector<ulint> OCC;
