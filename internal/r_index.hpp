@@ -222,6 +222,19 @@ public:
      *
      * }
      */
+
+    vector<ulint>& locate_range(ulint L, ulint R, ulint k, vector<ulint>& OCC) {
+        ulint n_occ = R>=L ? (R-L)+1 : 0;
+        if(n_occ>0){
+            OCC.push_back(k);
+            for(ulint i=1;i<n_occ;++i){
+                k = Phi(k);
+                OCC.push_back(k);
+            }
+        }
+        return OCC;
+    }
+
     /*
      * locate all occurrences of P and return them in an array
      * (space consuming if result is big).
@@ -232,15 +245,7 @@ public:
         ulint L = std::get<0>(res).first;
         ulint R = std::get<0>(res).second;
         ulint k = std::get<1>(res);    //SA[R]
-        ulint n_occ = R>=L ? (R-L)+1 : 0;
-        if(n_occ>0){
-            OCC.push_back(k);
-            for(ulint i=1;i<n_occ;++i){
-                k = Phi(k);
-                OCC.push_back(k);
-            }
-        }
-        return OCC;
+        return locate_range(L, R, k, OCC);
     }
 
     /*
@@ -336,13 +341,14 @@ public:
     }
 
 private:
+
     /*
      * returns <<l,r>, SA[r] >, where l,r are the inclusive ranges of the pattern P. If P does not occur, then l>r
      *
      * returns <range, j,k>
      *
      */
-    pair<range_t, ulint> count_and_get_occ(string &P){
+    pair<range_t, ulint> old_count_and_get_occ(const string &P){
         //k = SA[r]
         ulint k = 0;
         range_t range = full_range();
@@ -376,9 +382,46 @@ private:
                     ulint run_of_j = bwt.run_of_position(j);
                     k = samples_last[run_of_j];
                 }
-            }
+            } else return {{1,0},0};
             range = range1;
         }
+        return {range, k};
+    }
+
+    pair<range_t, ulint> count_and_get_occ(const string &P) {
+        // loop restraints add a very minor speedup
+        ulint k = 0;
+        range_t range = full_range();
+        assert(r-1 < samples_last.size());
+        k = (samples_last[r-1]+1) % bwt.size();
+        range_t range1;
+        ulint m = P.size();
+        bool cur_good = (bwt[range.second] == P[m-1]);
+        bool next_good;
+        for(ulint i=0;i<m and range.second>=range.first;++i){
+            uchar c = P[m-i-1];
+            range1 = LF(range,c);
+            next_good = ((i == m-1) ? 1 : (bwt[range1.second] == P[m-i-2]));
+            if(range1.first <= range1.second) {
+                if(cur_good) { 
+                    assert(k>0);
+                    k--;
+                } else if (next_good) { 
+                    ulint rnk = bwt.rank(range.second,c); // >= 4 selects
+                    assert(rnk>0);
+                    rnk--;
+                    ulint j = bwt.select(rnk,c); // >= 4 selects
+                    assert(j>=range.first and j < range.second);
+                    ulint run_of_j = bwt.run_of_position(j); // > 3 selects
+                    k = samples_last[run_of_j];
+                }
+            } else {
+                return {{1,0}, 0};
+            }
+            cur_good = next_good;
+            range = range1;
+        }
+        assert(ret == old_count_and_get_occ(P));
         return {range, k};
     }
 
