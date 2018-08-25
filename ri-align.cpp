@@ -171,6 +171,7 @@ size_t piecewise_count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& s
             });
     return sams.size();
 }
+*/
 
 size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     sams.clear();
@@ -184,7 +185,7 @@ size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& 
                 std::ostringstream CIGAR_stream;
                 if (start) CIGAR_stream << start << "S";
                 CIGAR_stream << end-start+1<< "M";
-                if (m-end-1 > 0) CIGAR_stream << m-end-1 << "S";
+                if (m-end-1) CIGAR_stream << m-end-1 << "S";
                 sam.CIGAR = CIGAR_stream.str();
             }
             if (!locs.size()) sam.flag = 4; // TODO: should we flag un-located alignments as 4? 
@@ -197,10 +198,11 @@ size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& 
             cout << sam;
             sams.push_back(std::move(sam));
             });
-    // cerr << seq->name.s << "has " << sams.size() << " pieces." << endl;;
+    cerr << seq->name.s << "has " << sams.size() << " pieces." << endl;;
     return sams.size();
 }
 
+/*
 size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     std::string s(seq->seq.s);
     std::transform(s.begin(), s.end(), s.begin(), ::toupper);
@@ -288,9 +290,9 @@ int main(int argc, char** argv){
         read_and_locate<locate>(idx_pre, patt_file, niter, opts);
     } /* else if (program == "count") {
         read_and_locate<count>(idx_pre, patt_file, niter, opts);
-    } else if (program == "pw_locate") {
+    } */ else if (program == "pw_locate") {
         read_and_locate<piecewise_locate>(idx_pre, patt_file, niter, opts);
-    } else if (program == "pw_count") {
+    } /*else if (program == "pw_count") {
         read_and_locate<piecewise_count>(idx_pre, patt_file, niter, opts);
     }
     */

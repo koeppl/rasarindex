@@ -15,8 +15,11 @@
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 #include "utils.hpp"
+
 using namespace sdsl;
+
 namespace ri{
+
 template    <    class sparse_bv_type = sparse_sd_vector,
                 class rle_string_t = rle_string_sd
             >

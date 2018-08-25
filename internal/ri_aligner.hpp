@@ -34,6 +34,7 @@ namespace ri {
     typedef std::tuple<uchar,uint,uint,partial_aln> iel_t; // inexact_locate: c,i,z,pa
     typedef std::tuple<range_t,ulint,ulint,uint> loc_t;
 
+    /*
     struct cmp_iel_score_lt {
         bool operator()(const iel_t& lhs, const iel_t& rhs) const {
             return std::get<3>(lhs).score < std::get<3>(rhs).score;
@@ -45,6 +46,7 @@ namespace ri {
         }
     };
     typedef std::priority_queue<iel_t, std::vector<iel_t>, cmp_iel_score_gt> iel_heap;
+    */
 
     class ri_aligner {
         public:
@@ -125,12 +127,10 @@ namespace ri {
                 return D_algo(P.c_str(), P.size(), D);
             }
 
-            /*
-            range_t exact_count(const char* P, const uint m) {
-                range_t count = fwd.count(P, m);
+            range_t exact_count(std::string& P) {
+                range_t count = fwd.count(P);
                 return count;
             }
-            */
 
             // iec=inexact_count
             /*
@@ -187,6 +187,9 @@ namespace ri {
                 ulint m = P.size();
                 for (uint i = 0; i < m; ++i) {
                     std::tie(range, k) = fwd.LF_w_loc(range, P[m-i-1], k);
+                    if (range.second < range.first) {
+                        return;
+                    }
                 }
                 if (range.second-range.first+1 <= opts.max_range) {
                     fwd.locate_range(range.first, range.second, k, opts.max_hits, locs);
@@ -263,74 +266,41 @@ namespace ri {
             */
 
 
-            //  get range until failure, then restart,repeat from next position.
-            //  use a lambda function to capture range for each "segment" (ulint)
-            //  F(string input, range_t range, uint segment_start, uint segment_end)
-            /*
-            template<typename Func>
-            void piecewise_count(std::string P, const ri_opts_t& opts, Func f) {
-                range_t full_range = fwd.full_range();
-                range_t range1 = full_range, range2 = full_range, range3 = full_range;
-                uint m = P.size(), end = m-1;
-                uint i;
-                for (i = 0; i < m; ++i) {
-                    range1 = range2;
-                    range2 = range3;
-                    range3 = fwd.LF(range2, P[m-i-1]);
-                    // if current range (range3) fails, locate the previous range (range2)
-                    if (range3.second < range3.first) {
-                        f(P, range2, m-i, end); // capture locs as output here
-                        // reset ranges
-                        range2 = full_range;
-                        range3 = full_range;
-                        end = m-i-2;
-                    }
-                }
-                if (range3.second >= range3.first) {
-                    f(P, range3, m-i, end);
-                }  // TODO: do we need an else statement here?
-                return;
-            }
-
-
             //  locate until failure, then restart,repeat from next position.
             //  use a lambda function to capture ouput for each "segment" (vector<ulint>):
             //  F(string input, uint segment_start, uint segment_end, vector<ulint> locs)
             template<typename Func>
             void piecewise_locate(std::string P, const ri_opts_t& opts, Func f) {
-                range_t full_range = fwd.full_range();
-                range_t range1 = full_range, range2 = full_range, range3 = full_range;
-                ulint k1 = 0, j1 = 0;
-                ulint k2 = 0, j2 = 0;
-                uint m = P.size(), end = m-1;
-                uint i;
-                for (i = 0; i < m; ++i) {
-                    range1 = range2;
-                    range2 = range3;
-                    k1 = k2;
-                    j1 = j2;
-                    std::tie(range3, k2, j2) = fwd.LF_w_loc(range2, P[m-i-1], k1, j1);
-                    // if current range (range3) fails, locate the previous range (range2)
-                    if (range3.second < range3.first) {
+                ulint k = 0;
+                range_t range = fwd.full_range();
+                k = fwd.get_last_run_sample();
+                ulint m = P.size();
+                range_t range1;
+                ulint k1;
+                uint end = m-1;
+                for (uint i = 0; i < m; ++i) {
+                    std::tie(range1, k1) = fwd.LF_w_loc(range, P[m-i-1], k);
+                    if (range1.second < range1.first) {
+                        // locate range
                         vector<ulint> locs;
-                        find_locs(range1, range2, P[m-i], k1, j1, opts, locs);
-                        f(P, range2, m-i, end, locs); // capture locs as output here
-                        // reset ranges
-                        range2 = full_range;
-                        range3 = full_range;
-                        k2 = 0;
-                        j2 = 0;
-                        end = m-i-2;
+                        do_locate(range, k, opts, locs);
+                        f(P, range, (m-i-1)+1, end ,locs);
+                        // reset range, k, end
+                        range = fwd.full_range();
+                        k = fwd.get_last_run_sample(); 
+                        end=m-i-1;
+                    } else {
+                        range = range1;
+                        k = k1;
                     }
                 }
-                if (range3.second >= range3.first) {
+                if (range.second >= range.first) { // capture final range if it hasn't already
                     vector<ulint> locs;
-                    find_locs(range2, range3, P[0], k2, j2, opts, locs);
-                    f(P, range3, m-i, end, locs);
-                }  // TODO: do we need an else statement here?
+                    do_locate(range, k, opts, locs);
+                    f(P,range,0, end,locs);
+                }
                 return;
             }
-            */
 
         private:
             ri::r_index<> fwd, rev;
@@ -340,6 +310,12 @@ namespace ri {
             uint ges = 0;
             inline uint score_fn(const partial_aln& pa) {
                 return((mms)*(pa.mm) + (gos)*(pa.go) + (ges)*(pa.ge));
+            }
+            inline vector<ulint>& do_locate(range_t range, ulint k, ri_opts_t opts, vector<ulint>& locs) {
+                if (range.second - range.first + 1 <= opts.max_range) {
+                    fwd.locate_range(range.first, range.second, k, opts.max_hits, locs);
+                }
+                return locs;
             }
     };
 
