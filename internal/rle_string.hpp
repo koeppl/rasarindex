@@ -87,6 +87,60 @@ public:
         assert(run_heads.size()==R);
     }
 
+    rle_string(std::ifstream& ifs, ulint B = 2) {
+        ifs.clear();
+        ifs.seekg(0);
+        // assert(not contains0(input)); // We're hacking the 0 away :)
+        this->B = B;
+        // n = input.size();
+        R = 0;
+        auto runs_per_letter_bv = vector<vector<bool> >(256);
+        //runs in main bitvector
+        vector<bool> runs_bv;
+        string run_heads_s;
+        // uchar last_c = input[0];
+        uchar last_c, c;
+        ifs >> last_c;
+        last_c = last_c>TERMINATOR ? last_c : TERMINATOR; // 0->1 :D
+        n = 1;
+        while(ifs >> c) {
+            c = c>TERMINATOR ? c : TERMINATOR; // 0->1 :D
+            if(c != last_c){
+                run_heads_s.push_back(last_c);
+                runs_per_letter_bv[last_c].push_back(true);
+                last_c = c;
+                //push back a bit set only at the end of a block
+                runs_bv.push_back(R%B==B-1);
+                R++;
+            } else{
+                runs_bv.push_back(false);
+                runs_per_letter_bv[last_c].push_back(false);
+            }
+            n += 1;
+        }
+        run_heads_s.push_back(last_c);
+        runs_per_letter_bv[last_c].push_back(true);
+        runs_bv.push_back(false);
+        R++;
+        assert(run_heads_s.size()==R);
+        // assert(R==count_runs(input));
+        //cout << "runs in BWT(input) = " << count_runs(input) << endl;
+        //cout << "runs in rle bwt = " << R << endl << endl;
+        //now compact structures
+        assert(runs_bv.size()==n);
+        ulint t = 0;
+        for(ulint i=0;i<256;++i)
+            t += runs_per_letter_bv[i].size();
+        assert(t==n);
+        runs = sparse_bitvector_t(runs_bv);
+        //a fast direct array: char -> bitvector.
+        runs_per_letter = vector<sparse_bitvector_t>(256);
+        for(ulint i=0;i<256;++i)
+            runs_per_letter[i] = sparse_bitvector_t(runs_per_letter_bv[i]);
+        run_heads = string_t(run_heads_s);
+        assert(run_heads.size()==R);
+    }
+
     uchar operator[](ulint i){
         assert(i<n);
         return run_heads[run_of(i).first];
@@ -383,6 +437,7 @@ private:
     //text length and number of runs
     ulint n=0;
     ulint R=0;
+    static const uchar TERMINATOR=1;
 };
 
 typedef rle_string<sparse_sd_vector> rle_string_sd;

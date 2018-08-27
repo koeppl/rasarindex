@@ -15,6 +15,7 @@
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 #include "utils.hpp"
+#include "bwt_scan.hpp"
 
 using namespace sdsl;
 
@@ -95,6 +96,38 @@ public:
             assert(bitsize(uint64_t(samples_first_vec[i].second)) <= log_r);
             pred_to_run[i] = samples_first_vec[i].second;
         }
+        cout << " done. " << endl<<endl;
+    }
+
+    /* use big-bwt to create r-index
+     * IMPORTANT: takes input FILE NAME, NOT the input string itself!
+     * to use, first create object with empty constructor, then call init. ex.
+     * idx = r_index();
+     * idx.init(fname);
+     */
+    void init_bigbwt(std::string fname) {
+        std::vector<std::pair<ulint, ulint>> samples_first_vec;
+        std::vector<ulint> samples_last_vec;
+        cout << "(1/3) Building BWT and computing SA samples";
+        std::string bwt_fname = bigbwt(fname, true, samples_first_vec, samples_last_vec);
+        // TODO: read bwt from file, but we have to first check if rle_string works with my bigbwt function
+        std::ifstream ifs(bwt_fname);
+        cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
+        bwt = rle_string(ifs);
+        F = build_F(ifs); //
+        // assert(input.size()+1 == bwt.size());
+        cout << "done. " << endl<<endl;
+        r = bwt.number_of_runs();
+        assert(samples_first_vec.size() == r);
+        assert(samples_last_vec.size() == r);
+        int log_r = bitsize(uint64_t(r));
+        int log_n = bitsize(uint64_t(bwt.size()));
+        cout << "Number of BWT equal-letter runs: r = " << r << endl;
+        cout << "Rate n/r = " << double(bwt.size())/r << endl;
+        cout << "log2(r) = " << log2(double(r)) << endl;
+        cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
+        cout << "(3/3) Building phi function ..." << flush;
+        build_phi(samples_first_vec, samples_last_vec); //
         cout << " done. " << endl<<endl;
     }
 
@@ -493,11 +526,89 @@ private:
         return tuple<string, vector<pair<ulint, ulint> >, vector<ulint> >(bwt_s, samples_first, samples_last);
     }
 
+    /* TODO: do this. */
+    std::string bigbwt(std::string fname, bool fasta, std::vector<std::pair<ulint,ulint>>& samples_first_vec, std::vector<ulint>& samples_last_vec) {
+        // TODO: handle reverse string
+        // BWT CONSTRUCTION
+        std::string command = "bigbwt " + fname;
+        if (fasta) command += " -f"; // tell bigbwt to process fasta file
+        system(command.c_str());
+        // file saved to ${fname}.bwt
+        // SA CONSTRUCTION
+        bwt_scan_ssa(fname + ".bwt", samples_first_vec, samples_last_vec);
+        return fname + ".bwt";
+    }
+
     static bool contains_reserved_chars(string &s){
         for(auto c : s)
             if(c == 0 or c == 1)
                 return true;
         return false;
+    }
+
+    vector<ulint> build_F(const std::string& bwt_s) {
+        F = vector<ulint>(256,0);
+        for(uchar c : bwt_s)
+            F[c]++;
+        for(ulint i=255;i>0;--i)
+            F[i] = F[i-1];
+        F[0] = 0;
+        for(ulint i=1;i<256;++i)
+            F[i] += F[i-1];
+        for(ulint i=0;i<bwt_s.size();++i)
+            if(bwt_s[i]==TERMINATOR)
+                terminator_position = i;
+        return F;
+    }
+    
+    vector<ulint> build_F(std::ifstream& ifs) {
+        ifs.clear();
+        ifs.seekg(0);
+        F = vector<ulint>(256,0);
+        uchar c;
+        ulint i = 0;
+        while (ifs >> c) {
+            if (c>TERMINATOR) F[c]++;
+            else {
+                F[TERMINATOR]++;
+                terminator_position = i;
+            }
+            i++;
+        }
+        for(ulint i=255;i>0;--i)
+            F[i] = F[i-1];
+        F[0] = 0;
+        for(ulint i=1;i<256;++i)
+            F[i] += F[i-1];
+        return F;
+    }
+
+    void build_phi(std::vector<std::pair<ulint,ulint>>& samples_first_vec, std::vector<ulint>& samples_last_vec) {
+        int log_r = bitsize(uint64_t(r));
+        int log_n = bitsize(uint64_t(bwt.size()));
+        std::sort(samples_first_vec.begin(), samples_first_vec.end());
+        //build Elias-Fano predecessor
+        {
+            auto pred_bv = vector<bool>(bwt.size(),false);
+            for(auto p : samples_first_vec){
+                assert(p.first < pred_bv.size());
+                pred_bv[p.first] = true;
+            }
+            pred = sparse_bv_type(pred_bv);
+        }
+        assert(pred.rank(pred.size()) == r);
+        //last text position must be sampled
+        assert(pred[pred.size()-1]);
+        samples_last = int_vector<>(r,0,log_n); //text positions corresponding to last characters in BWT runs, in BWT order
+        pred_to_run = int_vector<>(r,0,log_r); //stores the BWT run (0...R-1) corresponding to each position in pred, in text order
+        for(ulint i=0;i<samples_last_vec.size();++i){
+            assert(bitsize(uint64_t(samples_last_vec[i])) <= log_n);
+            samples_last[i] = samples_last_vec[i];
+        }
+        for(ulint i=0;i<samples_first_vec.size();++i){
+            assert(bitsize(uint64_t(samples_first_vec[i].second)) <= log_r);
+            pred_to_run[i] = samples_first_vec[i].second;
+        }
     }
 
     static const uchar TERMINATOR = 1;

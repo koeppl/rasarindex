@@ -4,3 +4,6 @@
 [submodule "sdsl-lite"]
 	path = sdsl-lite
 	url = git@github.com:simongog/sdsl-lite.git
+[submodule "Big-BWT"]
+	path = Big-BWT
+	url = https://gitlab.com/manzai/Big-BWT.git
