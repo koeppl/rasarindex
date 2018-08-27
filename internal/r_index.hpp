@@ -108,14 +108,11 @@ public:
     void init_bigbwt(std::string fname) {
         std::vector<std::pair<ulint, ulint>> samples_first_vec;
         std::vector<ulint> samples_last_vec;
-        cout << "(1/3) Building BWT and computing SA samples";
-        std::string bwt_fname = bigbwt(fname, true, samples_first_vec, samples_last_vec);
-        // TODO: read bwt from file, but we have to first check if rle_string works with my bigbwt function
+        cout << "(1/3) Building BWT and computing SA samples ... ";
+        std::string bwt_fname = bigbwt(fname, true, samples_first_vec, samples_last_vec, F);
         std::ifstream ifs(bwt_fname);
         cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
         bwt = rle_string(ifs);
-        F = build_F(ifs); //
-        // assert(input.size()+1 == bwt.size());
         cout << "done. " << endl<<endl;
         r = bwt.number_of_runs();
         assert(samples_first_vec.size() == r);
@@ -527,7 +524,8 @@ private:
     }
 
     /* TODO: do this. */
-    std::string bigbwt(std::string fname, bool fasta, std::vector<std::pair<ulint,ulint>>& samples_first_vec, std::vector<ulint>& samples_last_vec) {
+    std::string bigbwt(std::string fname, bool fasta, std::vector<std::pair<ulint,ulint>>& samples_first_vec, std::vector<ulint>& samples_last_vec,
+            std::vector<ulint>& F) {
         // TODO: handle reverse string
         // BWT CONSTRUCTION
         std::string command = "bigbwt " + fname;
@@ -535,7 +533,7 @@ private:
         system(command.c_str());
         // file saved to ${fname}.bwt
         // SA CONSTRUCTION
-        bwt_scan_ssa(fname + ".bwt", samples_first_vec, samples_last_vec);
+        bwt_scan_ssa(fname + ".bwt", samples_first_vec, samples_last_vec, F, &terminator_position);
         return fname + ".bwt";
     }
 
@@ -580,6 +578,10 @@ private:
         F[0] = 0;
         for(ulint i=1;i<256;++i)
             F[i] += F[i-1];
+        std::ofstream ffs("F2");
+        for (auto i = 0; i < F.size(); ++i) {
+            ffs << i << " " << F[i] << endl;
+        }
         return F;
     }
 

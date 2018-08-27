@@ -16,16 +16,17 @@ using std::endl;
 /* r-index uses 1 for end of string (we can change this, nbd?) */
 
 template<typename S>
-void get_F_and_runs(const S& str, std::vector<uint64_t>& F, sdsl::bit_vector& runstarts, sdsl::bit_vector& runends, uint8_t terminator=1) {
+void get_F_and_runs(const S& str, std::vector<uint64_t>& F, sdsl::bit_vector& runstarts, sdsl::bit_vector& runends, uint64_t* term_pos=nullptr, uint8_t terminator=1) {
     /* NOTE: any char c s.t. c < terminator is treated as terminator (ie. if c==0 and terminator == 1, then c is treated as 1) */
     assert(runstarts.size() == str.size() && runends.size()==str.size() && F.size() == 256);
-
+    F = vector<ulint>(256,0);
     uint8_t lastchar=str[0], nextchar=str[0], nextnextchar=str[1];
     uint64_t i;
     for (i = 0; i < str.size()-1; ++i) {
         nextnextchar = str[i+1];
         if (nextchar <= terminator) {
             F[terminator] += 1;
+            if (term_pos) *term_pos = i;
         } else {
             F[nextchar] += 1;
         }
@@ -60,14 +61,14 @@ void get_F_and_runs(const S& str, std::vector<uint64_t>& F, sdsl::bit_vector& ru
     }
 }
 
-void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_t>>& samples_first, std::vector<uint64_t>& samples_last) {
+void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_t>>& samples_first, std::vector<uint64_t>& samples_last, std::vector<uint64_t>& F, uint64_t* term_pos=nullptr) {
     sdsl::wt_huff<> bwt;
     sdsl::construct(bwt, bwt_fname, 1);
     size_t n = bwt.size();
     sdsl::bit_vector run_starts(n,0);
     sdsl::bit_vector run_ends(n, 0);
-    std::vector<uint64_t> F(256, 0);
-    get_F_and_runs<sdsl::wt_huff<>>(bwt, F, run_starts, run_ends);
+    F.assign(256, 0);
+    get_F_and_runs<sdsl::wt_huff<>>(bwt, F, run_starts, run_ends, term_pos);
     // rank-ify run_starts and run_ends
     sdsl::bit_vector::rank_1_type rs_rank(&run_starts);
     sdsl::bit_vector::rank_1_type re_rank(&run_ends);
@@ -101,6 +102,10 @@ void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_
     for (auto i: samples_first) saf << std::get<0>(i) << " " << std::get<1>(i) << endl;
     for (auto i : samples_last) sal << i << endl;
     saf.close(); sal.close();
+    std::ofstream ffs("F");
+    for (auto i = 0; i < F.size(); ++i) {
+        ffs << i << " " << F[i] << endl;
+    }
     */
 }
 
