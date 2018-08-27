@@ -67,3 +67,6 @@ TARGET_LINK_LIBRARIES(ri-align sdsl)
 TARGET_LINK_LIBRARIES(ri-align divsufsort)
 TARGET_LINK_LIBRARIES(ri-align divsufsort64)
 TARGET_LINK_LIBRARIES(ri-align z)
+
+add_executable(check_bwtsa bwtsa.cpp)
+TARGET_LINK_LIBRARIES(check_bwtsa sdsl)
