@@ -578,10 +578,6 @@ private:
         F[0] = 0;
         for(ulint i=1;i<256;++i)
             F[i] += F[i-1];
-        std::ofstream ffs("F2");
-        for (auto i = 0; i < F.size(); ++i) {
-            ffs << i << " " << F[i] << endl;
-        }
         return F;
     }
 

@@ -132,7 +132,7 @@ int main(int argc, char** argv){
         input = read_fasta(std::ifstream(input_file));
         std::string path;
         std::ofstream out;
-        path = std::string(out_basename).append(".sais.ri");
+        path = std::string(out_basename).append(".ri");
         out = std::ofstream(path);
         out.write((char*)&fast,sizeof(fast));
         std::cout << "building forward index using sais" << std::endl;
@@ -146,7 +146,7 @@ int main(int argc, char** argv){
         auto t1 = high_resolution_clock::now();
         std::string path;
         std::ofstream out;
-        path = std::string(out_basename).append(".bigbwt.ri");
+        path = std::string(out_basename).append(".ri");
         out = std::ofstream(path);
         out.write((char*)&fast,sizeof(fast));
         std::cout << "building forward index using bigbwt" << std::endl;
