@@ -1,0 +1,34 @@
+Bootstrap: docker
+
+From: ubuntu:18.04
+
+%help
+
+use this container to run r-index executables
+
+%post
+# installing pre-reqs
+apt-get update
+apt-get -y install build-essential zlib1g-dev git cmake
+# installing r-index!
+git clone https://github.com/alshai/r-index
+cd r-index
+git submodule update --init --recursive
+cd sdsl-lite
+cmake .
+make
+cd ..
+cd Big-BWT
+make
+cd ..
+mkdir build
+cd build
+cmake ..
+make ri-align ri-buildfasta
+cd ~/
+
+%apprun ri-buildfasta
+exec /r-index/build/ri-buildfasta "$@"
+
+%apprun ri-align
+exec /r-index/build/ri-align "$@"
