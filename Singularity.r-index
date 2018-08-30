@@ -7,10 +7,14 @@ From: ubuntu:18.04
 use this container to run r-index executables
 
 %post
+
 # installing pre-reqs
+
 apt-get update
-apt-get -y install build-essential zlib1g-dev git cmake
+apt-get -y install time build-essential zlib1g-dev git cmake python3
+
 # installing r-index!
+
 git clone https://github.com/alshai/r-index
 cd r-index
 git submodule update --init --recursive
@@ -27,8 +31,13 @@ cmake ..
 make ri-align ri-buildfasta
 cd ~/
 
+%environment
+
+export PATH=$PATH:/r-index/build/
+export PATH=$PATH:/r-index/Big-BWT/
+
 %apprun ri-buildfasta
-exec /r-index/build/ri-buildfasta "$@"
+exec /usr/bin/time ri-buildfasta "$@"
 
 %apprun ri-align
-exec /r-index/build/ri-align "$@"
+exec /usr/bin/time ri-align "$@"
