@@ -37,7 +37,7 @@ export PATH=$PATH:/r-index/build/
 export PATH=$PATH:/r-index/Big-BWT/
 
 %apprun ri-buildfasta
-exec /usr/bin/time ri-buildfasta "$@"
+exec /usr/bin/time -v ri-buildfasta "$@"
 
 %apprun ri-align
-exec /usr/bin/time ri-align "$@"
+exec /usr/bin/time -v ri-align "$@"
