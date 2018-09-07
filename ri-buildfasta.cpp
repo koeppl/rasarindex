@@ -157,6 +157,21 @@ int main(int argc, char** argv){
         auto t2 = high_resolution_clock::now();
         ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
         cout << "Build time : " << get_time(total) << endl;
+    } else  if (bwt_alg == "from_bwt") {
+        auto t1 = high_resolution_clock::now();
+        std::string path;
+        std::ofstream out;
+        path = std::string(out_basename).append(".ri");
+        out = std::ofstream(path);
+        out.write((char*)&fast,sizeof(fast));
+        std::cout << "building forward index from existing bwt in "  << input_file << std::endl;
+        auto idx = r_index<>();
+        idx.from_bwt(input_file);
+        std::cout << "writing forward index to " << path << std::endl;
+        idx.serialize(out);
+        auto t2 = high_resolution_clock::now();
+        ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
+        cout << "Build time : " << get_time(total) << endl;
     } else {
         cerr << "invalid bwt algorithm specified. exiting..." << endl;
         exit(1);

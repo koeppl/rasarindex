@@ -128,6 +128,29 @@ public:
         cout << " done. " << endl<<endl;
     }
 
+    void from_bwt(std::string fname) {
+        cout << "(1/3) NOT Building BWT, directly computing SA samples ... ";
+        std::vector<std::pair<ulint, ulint>> samples_first_vec;
+        std::vector<ulint> samples_last_vec;
+        bwt_scan_ssa(fname, samples_first_vec, samples_last_vec, F, &terminator_position);
+        std::ifstream ifs(fname);
+        cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
+        bwt = rle_string_t(ifs); // TODO: is there anyway to prevent opening/reading the file again?
+        cout << "done. " << endl<<endl;
+        r = bwt.number_of_runs();
+        assert(samples_first_vec.size() == r);
+        assert(samples_last_vec.size() == r);
+        int log_r = bitsize(uint64_t(r));
+        int log_n = bitsize(uint64_t(bwt.size()));
+        cout << "Number of BWT equal-letter runs: r = " << r << endl;
+        cout << "Rate n/r = " << double(bwt.size())/r << endl;
+        cout << "log2(r) = " << log2(double(r)) << endl;
+        cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
+        cout << "(3/3) Building phi function ..." << flush;
+        build_phi(samples_first_vec, samples_last_vec); //
+        cout << " done. " << endl<<endl;
+    }
+
     /*
      * get full BWT range
      */
