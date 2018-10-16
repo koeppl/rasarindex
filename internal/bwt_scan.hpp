@@ -22,10 +22,12 @@ static const uint8_t TERMINATOR = 1; // assuming this is some very low number
 *
 * TODO: make this less ugly.
 */
-void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_t>>& samples_first, std::vector<uint64_t>& samples_last, std::vector<uint64_t>& F, uint64_t* term_pos=nullptr) {
+std::tuple<uint64_t, uint64_t> bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_t>>& samples_first, std::vector<uint64_t>& samples_last, std::vector<uint64_t>& F, uint64_t* term_pos=nullptr) {
     sdsl::wt_huff<> bwt;
     sdsl::construct(bwt, bwt_fname, 1);
-    size_t n = bwt.size();
+    uint64_t n = bwt.size();
+    uint64_t r = 0;
+
     sdsl::bit_vector run_starts(n,0);
     sdsl::bit_vector run_ends(n, 0);
     F = std::vector<ulint>(256,0);
@@ -39,8 +41,10 @@ void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_
             if (term_pos) *term_pos = i;
         } else 
             F[nextchar] += 1;
-        if (nextchar != lastchar || i == 0) // i is runstart or first char of bwt
+        if (nextchar != lastchar || i == 0) { // i is runstart or first char of bwt
             run_starts[i] = 1;
+            r += 1;
+        }
         if (nextchar != nextnextchar) 
             run_ends[i] = 1;
         lastchar = nextchar;
@@ -51,8 +55,10 @@ void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_
         F[TERMINATOR] += 1; 
     else 
         F[nextchar] += 1; 
-    if (nextchar != lastchar || i == 0) 
+    if (nextchar != lastchar || i == 0)  {
+        r += 1;
         run_starts[i] = 1;
+    }
     run_ends[i] = 1; // i==n-1 aka last character in bwt
     // make sure only one occurence of terminator exists
     if (F[TERMINATOR] > 1) {
@@ -105,6 +111,7 @@ void bwt_scan_ssa(std::string bwt_fname, std::vector<std::pair<uint64_t, uint64_
         ffs << i << " " << F[i] << endl;
     }
     */
+    return {n, r};
 }
 
 #endif

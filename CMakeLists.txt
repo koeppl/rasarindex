@@ -18,6 +18,8 @@ include_directories(${PROJECT_SOURCE_DIR}/sdsl-lite/external/libdivsufsort/inclu
 
 LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/sdsl-lite/lib)
 LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/sdsl-lite/external/libdivsufsort/lib)
+LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib/gcc/x86_64-redhat-linux/7.1.0/)
+LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib64/)
 # LINK_DIRECTORIES(~/lib) #SDSL lib are here
 
 message("Building in ${CMAKE_BUILD_TYPE} mode")

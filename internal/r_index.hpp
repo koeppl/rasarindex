@@ -332,13 +332,15 @@ public:
      * (space consuming if result is big).
      * TODO: add max-hits option
      */
-    vector<ulint> locate_all(string& P){
-        vector<ulint> OCC;
+    range_t locate_all(string& P, ulint max_hits, vector<ulint>& OCC){
+        //vector<ulint> OCC;
+        OCC.clear();
         pair<range_t, ulint> res = count_and_get_occ(P);
         ulint L = std::get<0>(res).first;
         ulint R = std::get<0>(res).second;
         ulint k = std::get<1>(res);    //SA[R]
-        return locate_range(L, R, k, OCC);
+        locate_range(L, R, k, max_hits, OCC);
+        return std::get<0>(res);
     }
 
     /*

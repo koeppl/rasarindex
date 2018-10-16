@@ -119,29 +119,24 @@ void parse_args(char** argv, int argc, int &ptr, size_t &niter, uint64_t &max_hi
 
 }
 
-/*
 size_t count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sam) {
     sam.clear();
     ulint count = 0;
-    if (opts.z == 0) {
-        auto range = idx.exact_count(seq->seq.s, seq->seq.l);
-        count = (range.second >= range.first) ? range.second - range.first + 1 : 0;
-    } else {
-        auto ranges = idx.inexact_count(seq->seq.s, seq->seq.l, opts);
-        for (const auto r: ranges) {
-            count += (r.second >= r.first) ? (r.second - r.first + 1) : 0;
-        } 
-    }
+    std::string s = std::string(seq->seq.s);
+    auto range = idx.exact_count(s);
+    count = (range.second >= range.first) ? range.second - range.first + 1 : 0;
     cout << seq->name.s << "\t" << count << "\n";
     return count;
 }
-*/
 
 size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     sam_t* sam = &(sams.at(0));
     sam->clear();
+    vector<ulint> locs;
     if (opts.z == 0) {
-        idx.exact_locate(std::string(seq->seq.s), opts, [sam, &seq](const std::string& P, const ri::range_t range, std::vector<ulint>& locs) {
+        std::string s(seq->seq.s);
+        std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+        idx.exact_locate(s, opts, [sam, &seq](const std::string& P, const ri::range_t range, std::vector<ulint>& locs) {
                 sam->clear();
                 uint m = P.size();
                 sam->query = std::string(seq->name.s);
@@ -155,7 +150,7 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
                 sam->tags.push_back(tag_stream.str());
                 sam->locs.swap(locs);
                 cout << *sam;
-                });
+                }, locs);
     }
     return sam->locs.size();
 }
@@ -239,18 +234,24 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
     sam_t s;
     sams.push_back(s);
 
-    size_t total_occs;
-    size_t occs = 0;
+    size_t total_occs = 0;
+    size_t occs = 1;
+    size_t patts = 1;
+
+    auto start = std::chrono::system_clock::now();
     {
-        vector<char> buf(1 << 16);
-        std::sprintf(buf.data(), "Time: ");
-        Timer t(buf.data());
+        // vector<char> buf(1 << 16);
+        // std::sprintf(buf.data(), "Time: ");
+        //Timer t(buf.data());
         while (kseq_read(seq) >= 0) {
             occs = F(idx, seq, opts, sams);
             // cout << sams[0];
             total_occs += occs;
+            // patts += 1;
         }
     }
+    auto stop = std::chrono::system_clock::now();
+    cerr << "Time per pattern: " << (std::chrono::duration<double>(stop - start).count()) << endl;
     kseq_destroy(seq);
     gzclose(read_fp);
 }
@@ -288,11 +289,13 @@ int main(int argc, char** argv){
     cerr << "Loading r-index (parameters: " << max_hits << ", " << max_range << ", " << z << ")\n";
     if (program == "locate") {
         read_and_locate<locate>(idx_pre, patt_file, niter, opts);
-    } /* else if (program == "count") {
+    } else if (program == "count") {
         read_and_locate<count>(idx_pre, patt_file, niter, opts);
-    } */ else if (program == "pw_locate") {
+    } else if (program == "pw_locate") {
         read_and_locate<piecewise_locate>(idx_pre, patt_file, niter, opts);
-    } /*else if (program == "pw_count") {
+    }
+    /*
+    } else if (program == "pw_count") {
         read_and_locate<piecewise_count>(idx_pre, patt_file, niter, opts);
     }
     */
