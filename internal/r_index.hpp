@@ -108,21 +108,27 @@ public:
     void init_bigbwt(std::string fname) {
         std::vector<std::pair<ulint, ulint>> samples_first_vec;
         std::vector<ulint> samples_last_vec;
-        cout << "(1/3) Building BWT and computing SA samples ... ";
-        std::string bwt_fname = bigbwt(fname, true, samples_first_vec, samples_last_vec, F);
+        cout << "(1/3) Building BWT..." << endl;
+        std::string bwt_fname = bigbwt(fname, true);
+        cout << "done.\n(2/3) RLE encoding BWT and computing SA samples... " << endl;
         std::ifstream ifs(bwt_fname);
-        cout << "done.\n(2/3) RLE encoding BWT ... " << flush;
         bwt = rle_string_t(ifs); // TODO: is there anyway to prevent opening/reading the file again?
-        cout << "done. " << endl<<endl;
         r = bwt.number_of_runs();
-        assert(samples_first_vec.size() == r);
-        assert(samples_last_vec.size() == r);
+        ulint n = bwt.size();
         int log_r = bitsize(uint64_t(r));
         int log_n = bitsize(uint64_t(bwt.size()));
         cout << "Number of BWT equal-letter runs: r = " << r << endl;
         cout << "Rate n/r = " << double(bwt.size())/r << endl;
         cout << "log2(r) = " << log2(double(r)) << endl;
         cout << "log2(n/r) = " << log2(double(bwt.size())/r) << endl << endl;
+        // bwt_scan_ssa(fname + ".bwt", samples_first_vec, samples_last_vec, F, &terminator_position);
+        ifs.seekg(0);
+        build_F(ifs);
+        read_run_starts(fname + ".ssa", n, samples_first_vec);
+        read_run_ends(fname + ".esa", n, samples_last_vec);
+        assert(samples_first_vec.size() == r);
+        assert(samples_last_vec.size() == r);
+        cout << "done. " << endl<<endl;
         cout << "(3/3) Building phi function ..." << flush;
         build_phi(samples_first_vec, samples_last_vec); //
         cout << " done. " << endl<<endl;
@@ -368,6 +374,14 @@ public:
      * \param out     the ostream
      */
     ulint serialize(std::ostream& out){
+        /*
+        std::ofstream termout("termout");
+        std::ofstream fout("fout");
+        std::ofstream bwtout("bwtout");
+        std::ofstream predout("predout");
+        std::ofstream samplesout("samplesout");
+        std::ofstream predrunout("predrunout");
+        */
         ulint w_bytes = 0;
         assert(F.size()>0);
         assert(bwt.size()>0);
@@ -378,6 +392,14 @@ public:
         w_bytes += pred.serialize(out);
         w_bytes += samples_last.serialize(out);
         w_bytes += pred_to_run.serialize(out);
+        /*
+        termout.write((char*)&terminator_position,sizeof(terminator_position));
+        fout.write((char*)F.data(),256*sizeof(ulint));
+        bwt.serialize(bwtout);
+        pred.serialize(predout);
+        samples_last.serialize(samplesout);
+        pred_to_run.serialize(predrunout);
+        */
         return w_bytes;
     }
 
@@ -549,16 +571,13 @@ private:
     }
 
     /* TODO: do this. */
-    std::string bigbwt(std::string fname, bool fasta, std::vector<std::pair<ulint,ulint>>& samples_first_vec, std::vector<ulint>& samples_last_vec,
-            std::vector<ulint>& F) {
+    std::string bigbwt(std::string fname, bool fasta) {
         // TODO: handle reverse string
         // BWT CONSTRUCTION
         std::string command = "bigbwt " + fname;
-        if (fasta) command += " -f"; // tell bigbwt to process fasta file
+        if (fasta) command += " -e -s -f"; // tell bigbwt to process fasta file
         system(command.c_str());
         // file saved to ${fname}.bwt
-        // SA CONSTRUCTION
-        bwt_scan_ssa(fname + ".bwt", samples_first_vec, samples_last_vec, F, &terminator_position);
         return fname + ".bwt";
     }
 
@@ -632,6 +651,29 @@ private:
             assert(bitsize(uint64_t(samples_first_vec[i].second)) <= log_r);
             pred_to_run[i] = samples_first_vec[i].second;
         }
+    }
+
+    vector<pair<ulint,ulint>>& read_run_starts(std::string fname, ulint n, vector<pair<ulint,ulint>>& ssa) {
+        ssa.clear();
+        std::ifstream ifs(fname);
+        uint64_t x = 0;
+        uint64_t y = 0;
+        uint64_t i = 0;
+        while (ifs.read((char*) &x, 5) && ifs.read((char*) &y, 5)) {
+            ssa.push_back(pair<ulint,ulint>(y ? y-1 : n-1, i));
+            i++;
+        }
+        return ssa;
+    }
+    vector<ulint>& read_run_ends(std::string fname, ulint n, vector<ulint>& esa) {
+        esa.clear();
+        std::ifstream ifs(fname);
+        uint64_t x = 0;
+        uint64_t y = 0;
+        while (ifs.read((char*) &x, 5) && ifs.read((char*) &y, 5)) {
+            esa.push_back(y ? y-1 : n-1);
+        }
+        return esa;
     }
 
     static const uchar TERMINATOR = 1;
