@@ -1,5 +1,26 @@
 r-index: the run-length BWT index
 ===============
+
+Modified by: Taher Mun
+Fork of `r-index` (see below) that uses pfBWT as the BWT-construction algorithm
+(https://gitlab.com/manzai/Big-BWT/tree/master) and to index+locate DNA
+sequences. 
+
+to build index from a fasta file (outputs to `input.fa.ri`):
+
+```
+ri-buildfasta -b <bigbwt|sais|from_bwt> input.fa
+```
+
+
+to locate queries in a fastq file:
+
+```
+ri-align --max-hits (default:-1) --max-range (default:-1) [locate|count] index_prefix reads.fq
+```
+
+
+
 Author: Nicola Prezza (nicola.prezza@gmail.com)
 Joint work with Travis Gagie and Gonzalo Navarro
 
