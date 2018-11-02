@@ -105,11 +105,12 @@ public:
      * idx = r_index();
      * idx.init(fname);
      */
-    void init_bigbwt(std::string fname) {
+    void init_bigbwt(std::string fname, bool acgt=false) {
         std::vector<std::pair<ulint, ulint>> samples_first_vec;
         std::vector<ulint> samples_last_vec;
         cout << "(1/3) Building BWT..." << endl;
-        std::string bwt_fname = bigbwt(fname, true);
+        std::string bwt_fname = bigbwt(fname, true, acgt);
+        /* make sure we only read fname+".*" after this, NOT fname itself */
         cout << "done.\n(2/3) RLE encoding BWT and computing SA samples... " << endl;
         std::ifstream ifs(bwt_fname);
         bwt = rle_string_t(ifs); // TODO: is there anyway to prevent opening/reading the file again?
@@ -571,11 +572,12 @@ private:
     }
 
     /* TODO: do this. */
-    std::string bigbwt(std::string fname, bool fasta) {
+    std::string bigbwt(std::string fname, bool fasta, bool acgt) {
         // TODO: handle reverse string
         // BWT CONSTRUCTION
         std::string command = "bigbwt " + fname;
         if (fasta) command += " -e -s -f"; // tell bigbwt to process fasta file
+        if (acgt) command += " -a";
         system(command.c_str());
         // file saved to ${fname}.bwt
         return fname + ".bwt";
