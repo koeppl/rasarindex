@@ -28,9 +28,9 @@ if `sdsl-lite` is not already installed, a local installation will be build. If
 this is the case, make sure that you clone this repo using the `--recursive` option or
 run `git submodule update --init --recursive`
 
-You will have to make `Big-BWT` directly and add the directory containing
-`BigBWT` to `$PATH`. (We plan to directly integrate `Big-BWT` into `r-index` in
-the future`.
+You will have to make `Big-BWT` directly and add the directory containing all
+the binaries associated with it to `$PATH`. (We plan to directly integrate
+`Big-BWT` into `r-index` in the future`.
 
 ```
 cd Big-BWT
