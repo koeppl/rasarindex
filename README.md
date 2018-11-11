@@ -6,20 +6,41 @@ Fork of `r-index` (see below) that uses pfBWT as the BWT-construction algorithm
 (https://gitlab.com/manzai/Big-BWT/tree/master) and to index+locate DNA
 sequences. 
 
-to build index from a fasta file (outputs to `input.fa.ri`):
+### To run:
+
+To build index from a fasta file (outputs to `input.fa.ri`):
 
 ```
 ri-buildfasta -b <bigbwt|sais|from_bwt> input.fa
 ```
 
 
-to locate queries in a fastq file:
+To locate queries in a fast[a|q] file:
 
 ```
 ri-align --max-hits (default:-1) --max-range (default:-1) [locate|count] index_prefix reads.fq
 ```
 
 
+### Extra Compilation Notes:
+
+if `sdsl-lite` is not already installed, a local installation will be build. If
+this is the case, make sure that you clone this repo using the `--recursive` option or
+run `git submodule update --init --recursive`
+
+You will have to make `Big-BWT` directly and add the directory containing
+`BigBWT` to `$PATH`. (We plan to directly integrate `Big-BWT` into `r-index` in
+the future`.
+
+```
+cd Big-BWT
+make
+export PATH="$PATH:$(readlink -f .)"
+```
+
+
+ORIGINAL README
+==============
 
 Author: Nicola Prezza (nicola.prezza@gmail.com)
 Joint work with Travis Gagie and Gonzalo Navarro

@@ -78,11 +78,11 @@ void help(){
 
     cout << "Usage: ri-align [options] <program> <index> <fastq>" << '\n';
     cout << "   <program>               locate/count/pw_locate         " << '\n';
-    cout << "   <index>                 index file (with extension .ri)" << '\n';
-    cout << "   <patterns>              file in pizza&chili format containing the patterns." << '\n';
+    cout << "   <index>                 prefix index file (do not include .ri or .rev.ri extension)" << '\n';
+    cout << "   <patterns>              fasta or fastq file" << '\n';
     cout << "   --max-hits/-m <int>     maximum number of hits to return. [default: std::numeric_limits<size_t>::max()]\n";
-    cout << "   --max-range/-r <int>  only return hits if a query has <= r occurences [default: std::numeric_limits<size_t>::max()]\n";
-    cout << "   -z <int>                number of mismatches to allow\n";
+    cout << "   --max-range/-r <int>    only return hits if a query has <= r occurences [default: std::numeric_limits<size_t>::max()]\n";
+    // cout << "   -z <int>                number of mismatches to allow\n";
     exit(0);
 }
 

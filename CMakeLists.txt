@@ -22,6 +22,24 @@ LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib/gcc/x86_64-redhat-linux/7.1.0/
 LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib64/)
 # LINK_DIRECTORIES(~/lib) #SDSL lib are here
 
+
+find_library(SDSL_LIB sdsl)
+if (NOT SDSL_LIB) 
+    # build sdsl from the submodule
+    message("sdsl-lite not found, building from subdirectory")
+    add_subdirectory(sdsl-lite)
+endif()
+
+find_library(DSS divsufsort)
+if (NOT DSS) 
+    message(FATAL_ERROR "divsufsort not found (did you do `git submodule update --recursive` with sdsl-lite?)")
+endif()
+
+find_library(DSS64 divsufsort64)
+if (NOT DSS64) 
+    message(FATAL_ERROR "divsufsort64 not found (did you do `git submodule update --recursive` with sdsl-lite?)")
+endif()
+
 message("Building in ${CMAKE_BUILD_TYPE} mode")
 
 set(CMAKE_CXX_FLAGS "--std=c++17")
@@ -31,13 +49,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-g -Ofast -fstrict-aliasing -march=native -DNDEBUG"
 # set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -fstrict-aliasing -march=native -DNDEBUG -DLF_STATS")  # Uncomment this line in order to enable LF_STATS.
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -ggdb -Ofast -fstrict-aliasing -march=native")
 
-
-#add_custom_command(TARGET sdsl-lite/lib/libsdsl.a
-#        PRE_BUILD
-#        COMMAND "cd sdsl-lite && cmake . && make && cd .."
-#        )
-# I'm trying to force it to build sdsl-lite, but having troubles.
-# Will fix later.
 
 add_executable(ri-build ri-build.cpp)
 TARGET_LINK_LIBRARIES(ri-build sdsl)
@@ -69,6 +80,3 @@ TARGET_LINK_LIBRARIES(ri-align sdsl)
 TARGET_LINK_LIBRARIES(ri-align divsufsort)
 TARGET_LINK_LIBRARIES(ri-align divsufsort64)
 TARGET_LINK_LIBRARIES(ri-align z)
-
-add_executable(check_bwtsa bwtsa.cpp)
-TARGET_LINK_LIBRARIES(check_bwtsa sdsl)
