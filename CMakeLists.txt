@@ -12,32 +12,23 @@ project (s-rlbwt)
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/internal)
-include_directories(${PROJECT_SOURCE_DIR}/sdsl-lite/include/)
-include_directories(${PROJECT_SOURCE_DIR}/sdsl-lite/external/libdivsufsort/include)
-# include_directories(~/include) #SDSL headers are here
-
-LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/sdsl-lite/lib)
-LINK_DIRECTORIES(${PROJECT_SOURCE_DIR}/sdsl-lite/external/libdivsufsort/lib)
-LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib/gcc/x86_64-redhat-linux/7.1.0/)
-LINK_DIRECTORIES(/software/cmshared/gcc/7.1.0/lib64/)
-# LINK_DIRECTORIES(~/lib) #SDSL lib are here
-
 
 find_library(SDSL_LIB sdsl)
-if (NOT SDSL_LIB) 
+if (NOT SDSL_LIB)
     # build sdsl from the submodule
+    # TODO: download sdsl and then build
     message("sdsl-lite not found, building from subdirectory")
     add_subdirectory(sdsl-lite)
-endif()
-
-find_library(DSS divsufsort)
-if (NOT DSS) 
-    message(FATAL_ERROR "divsufsort not found (did you do `git submodule update --recursive` with sdsl-lite?)")
-endif()
-
-find_library(DSS64 divsufsort64)
-if (NOT DSS64) 
-    message(FATAL_ERROR "divsufsort64 not found (did you do `git submodule update --recursive` with sdsl-lite?)")
+    include_directories(${CMAKE_BINARY_DIR}/sdsl-lite/include/)
+    include_directories(${CMAKE_BINARY_DIR}/sdsl-lite/external/libdivsufsort/include)
+    LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/sdsl-lite/lib)
+    LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/sdsl-lite/external/libdivsufsort/lib)
+else()
+    find_library(DSS divsufsort)
+    find_library(DSS64 divsufsort64)
+    message("sdsl: " ${SDSL_LIB})
+    message("divsufsort: " ${DSS})
+    message("divsufsort64: " ${DSS64})
 endif()
 
 message("Building in ${CMAKE_BUILD_TYPE} mode")
