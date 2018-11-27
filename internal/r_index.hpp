@@ -191,7 +191,7 @@ public:
         return {l,l+c_inside-1};
     }
 
-    pair<range_t, ulint> LF_w_loc(const range_t range, const uchar c, const ulint k) {
+    inline pair<range_t, ulint> LF_w_loc(const range_t range, const uchar c, const ulint k) {
         ulint k1;
         range_t range1 = LF(range, c);
         if (range1.first <= range1.second) {
