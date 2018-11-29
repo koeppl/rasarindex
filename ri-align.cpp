@@ -1,4 +1,5 @@
 #include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <algorithm>
 #include <zlib.h>
@@ -22,7 +23,7 @@ struct sam_t {
         clear();
     }
     std::string query = "";
-    uint flag = 4;
+    uint32_t flag = 4;
     std::vector<ulint> locs;
     std::string CIGAR = "";
     std::string seq = "";
@@ -36,9 +37,10 @@ struct sam_t {
         qual.clear();
         tags.clear();
     }
-    friend std::ostream& operator <<(std::ostream&, const sam_t&);
+    // friend std::ostream& operator <<(std::ostream&, const sam_t&);
 };
 
+/*
 std::ostream& operator <<(std::ostream& os, const sam_t& s) {
     if (s.locs.size()) {
         // for (const auto l: s.locs) {
@@ -71,18 +73,47 @@ std::ostream& operator <<(std::ostream& os, const sam_t& s) {
     }
     return os;
 }
+*/
 
+void samprintf(FILE* fp, const sam_t& s) {
+    if (s.locs.size()) {
+        for (auto it = s.locs.begin(); it != s.locs.end(); ++it) {
+            fprintf(fp, "%s\t", s.query.c_str());
+            if (it == s.locs.begin()) fprintf(fp, "%d\t", s.flag);
+            else fprintf(fp, "%d\t", (s.flag | 256));
+            fprintf(fp, "*\t");
+            fprintf(fp, "%llu\t", (*it)+1);
+            fprintf(fp, "*\t"); // MAPQ
+            fprintf(fp, "%s\t", s.CIGAR.c_str()); // CIGAR
+            fprintf(fp, "*\t"); // RNEXT
+            fprintf(fp, "0\t"); // PNEXT
+            fprintf(fp, "0\t"); // TLEN
+            if (it == s.locs.begin()) fprintf(fp, "%s\t%s", s.seq.c_str(), s.qual.c_str());
+            else fprintf(fp, "*\t*");
+            if (s.tags.size()) {
+                fprintf(fp, "\t");
+                for (auto tag: s.tags) fprintf(fp, "%s ", tag.c_str());
+            }
+            fprintf(fp, "\n");
+        }
+    } else {
+        fprintf(fp, "%s\t%d\t*\t*\t*\t%s\t*\t0\t0\t%s\t%s", s.query.c_str(), s.flag, s.CIGAR.c_str(), s.seq.c_str(), s.qual.c_str());
+        if (s.tags.size()) {
+            fprintf(fp, "\t");
+            for (auto tag: s.tags) fprintf(fp, "%s ", tag.c_str());
+        }
+        fprintf(fp, "\n");
+    }
+}
 
 void help(){
-    cout << "ri-align: align all occurrences of the input patterns." << '\n' << '\n';
-
-    cout << "Usage: ri-align [options] <program> <index> <fastq>" << '\n';
-    cout << "   <program>               locate/count/pw_locate         " << '\n';
-    cout << "   <index>                 prefix index file (do not include .ri or .rev.ri extension)" << '\n';
-    cout << "   <patterns>              fasta or fastq file" << '\n';
-    cout << "   --max-hits/-m <int>     maximum number of hits to return. [default: std::numeric_limits<size_t>::max()]\n";
-    cout << "   --max-range/-r <int>    only return hits if a query has <= r occurences [default: std::numeric_limits<size_t>::max()]\n";
-    // cout << "   -z <int>                number of mismatches to allow\n";
+    fprintf(stderr,  "ri-align: align all occurrences of the input patterns.\n\n" );
+    fprintf(stderr,  "Usage:    ri-align [options] <program> <index> <fastq>\n");
+    fprintf(stderr,  "   <program>               locate/count/pw_locate         \n");
+    fprintf(stderr,  "   <index>                 prefix index file (do not include .ri or .rev.ri extension)\n");
+    fprintf(stderr,  "   <patterns>              fasta or fastq file\n");
+    fprintf(stderr,  "   --max-hits/-m <int>     maximum number of hits to return. [default: std::numeric_limits<size_t>::max()]\n");
+    fprintf(stderr,  "   --max-range/-r <int>    only return hits if a query has <= r occurences [default: std::numeric_limits<size_t>::max()]\n");
     exit(0);
 }
 
@@ -96,24 +127,24 @@ void parse_args(char** argv, int argc, int &ptr, size_t &niter, uint64_t &max_hi
 
     if((s.compare("--max-hits") && s.compare("-m")) == 0) {
         if(ptr>=argc-1){
-            cout << "Error: missing parameter after --max-hits/-m option." << '\n';
+            fprintf(stderr, "Error: missing parameter after --max-hits/-m option.\n"); 
             help();
         }
         max_hits = std::strtoull(argv[ptr++], nullptr, 10);
     } else if ((s.compare("--max-range") && s.compare("-r")) ==0) {
         if(ptr>=argc-1){
-            cout << "Error: missing parameter after --range-thres/-r option." << '\n';
+            fprintf(stderr, "Error: missing parameter after --range-thres/-r option.\n");
             help();
         }
         max_range = std::strtoull(argv[ptr++], nullptr, 10);
     } else if(s.compare("-z") == 0) {
         if(ptr>=argc-1){
-            cout << "Error: missing parameter after -z option." << '\n';
+            fprintf(stderr, "Error: missing parameter after -z option.\n");
             help();
         }
         z = std::strtoul(argv[ptr++], nullptr, 10);
     } else{
-        cout << "Error: unknown option " << s << '\n';
+        fprintf(stderr, "Error: unknown option %s\n", s);
         help();
     }
 
@@ -125,7 +156,7 @@ size_t count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sam) {
     std::string s = std::string(seq->seq.s);
     auto range = idx.exact_count(s);
     count = (range.second >= range.first) ? range.second - range.first + 1 : 0;
-    cout << seq->name.s << "\t" << count << "\n";
+    fprintf(stdout, "%s\t%llu\n", seq->name.s, count);
     return count;
 }
 
@@ -149,7 +180,7 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
                 tag_stream << "NH:i:" << range.second-range.first+1;
                 sam->tags.push_back(tag_stream.str());
                 sam->locs.swap(locs);
-                cout << *sam;
+                samprintf(stdout, *sam);
                 }, locs);
     }
     return sam->locs.size();
@@ -190,10 +221,10 @@ size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& 
             tag_stream << "NH:i:" << range.second-range.first+1;
             sam.tags.push_back(tag_stream.str());
             sam.locs.swap(locs);
-            cout << sam;
+            samprintf(stdout, sam);
             sams.push_back(std::move(sam));
             });
-    cerr << seq->name.s << "has " << sams.size() << " pieces." << endl;;
+    fprintf(stderr, "%s has %llu pieces\n", seq->name.s, sams.size());
     return sams.size();
 }
 
@@ -210,7 +241,7 @@ template<size_t (*F)(idx_t&, kseq_t*, ri_opts_t, vector<sam_t>&)>
 void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri_opts_t opts){
     std::string text;
 
-    cerr << "loading fwd/rev r-index" << endl;
+    fprintf(stderr, "loading fwd/rev r-index\n" );
     idx_t idx(string(idx_pre).append(".ri")); // , string(idx_pre).append(".rev.ri"));
     // idx_t idx;
     // std::ifstream ifs(string(idx_pre).append(".ri"));
@@ -219,14 +250,11 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
     
     // LOAD IDX HERE
 
-    cerr << "searching patterns ... " << '\n';
-
     /* read fastq here, search as we go*/
-
     std::fprintf(stderr, "Reading from fastq file\n");
     gzFile read_fp(gzopen(patterns.c_str(), "r"));
     if (read_fp == nullptr) {
-        cerr << "invalid zip file" << '\n';
+        fprintf(stderr, "invalid zip file\n");
         exit(1);
     }
     kseq_t *seq(kseq_init(read_fp));
@@ -236,7 +264,7 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
 
     size_t total_occs = 0;
     size_t occs = 1;
-    size_t patts = 1;
+    // size_t patts = 1;
 
     auto start = std::chrono::system_clock::now();
     {
@@ -245,13 +273,12 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
         //Timer t(buf.data());
         while (kseq_read(seq) >= 0) {
             occs = F(idx, seq, opts, sams);
-            // cout << sams[0];
             total_occs += occs;
             // patts += 1;
         }
     }
     auto stop = std::chrono::system_clock::now();
-    cerr << "Time per pattern: " << (std::chrono::duration<double>(stop - start).count()) << endl;
+    fprintf(stderr, "Time per pattern: %.5f\n", (std::chrono::duration<double>(stop - start).count()));
     kseq_destroy(seq);
     gzclose(read_fp);
 }
@@ -286,7 +313,7 @@ int main(int argc, char** argv){
     opts.max_hits = max_hits;
     opts.max_range = max_range;
     opts.z = z;
-    cerr << "Loading r-index (parameters: " << max_hits << ", " << max_range << ", " << z << ")\n";
+    fprintf(stderr, "Loading r-index (parameters: %llu, %llu, %llu)\n", max_hits , max_range,  z );
     if (program == "locate") {
         read_and_locate<locate>(idx_pre, patt_file, niter, opts);
     } else if (program == "count") {
