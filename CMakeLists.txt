@@ -41,30 +41,30 @@ set(CMAKE_CXX_FLAGS_RELEASE "-g -Ofast -fstrict-aliasing -march=native -DNDEBUG"
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -ggdb -Ofast -fstrict-aliasing -march=native")
 
 
-add_executable(ri-build ri-build.cpp)
+add_executable(ri-build EXCLUDE_FROM_ALL ri-build.cpp)
 TARGET_LINK_LIBRARIES(ri-build sdsl)
 TARGET_LINK_LIBRARIES(ri-build divsufsort)
 TARGET_LINK_LIBRARIES(ri-build divsufsort64)
+
+add_executable(ri-locate EXCLUDE_FROM_ALL ri-locate.cpp)
+TARGET_LINK_LIBRARIES(ri-locate sdsl)
+TARGET_LINK_LIBRARIES(ri-locate divsufsort)
+TARGET_LINK_LIBRARIES(ri-locate divsufsort64)
+
+add_executable(ri-count EXCLUDE_FROM_ALL ri-count.cpp)
+TARGET_LINK_LIBRARIES(ri-count sdsl)
+TARGET_LINK_LIBRARIES(ri-count divsufsort)
+TARGET_LINK_LIBRARIES(ri-count divsufsort64)
+
+add_executable(ri-space EXCLUDE_FROM_ALL ri-space.cpp)
+TARGET_LINK_LIBRARIES(ri-space sdsl)
+TARGET_LINK_LIBRARIES(ri-space divsufsort)
+TARGET_LINK_LIBRARIES(ri-space divsufsort64)
 
 add_executable(ri-buildfasta ri-buildfasta.cpp)
 TARGET_LINK_LIBRARIES(ri-buildfasta sdsl)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort64)
-
-add_executable(ri-locate ri-locate.cpp)
-TARGET_LINK_LIBRARIES(ri-locate sdsl)
-TARGET_LINK_LIBRARIES(ri-locate divsufsort)
-TARGET_LINK_LIBRARIES(ri-locate divsufsort64)
-
-add_executable(ri-count ri-count.cpp)
-TARGET_LINK_LIBRARIES(ri-count sdsl)
-TARGET_LINK_LIBRARIES(ri-count divsufsort)
-TARGET_LINK_LIBRARIES(ri-count divsufsort64)
-
-add_executable(ri-space ri-space.cpp)
-TARGET_LINK_LIBRARIES(ri-space sdsl)
-TARGET_LINK_LIBRARIES(ri-space divsufsort)
-TARGET_LINK_LIBRARIES(ri-space divsufsort64)
 
 add_executable(ri-align ri-align.cpp)
 TARGET_LINK_LIBRARIES(ri-align sdsl)
