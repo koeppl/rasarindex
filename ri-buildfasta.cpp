@@ -108,8 +108,8 @@ int main(int argc, char** argv){
 
 	//parse options
 
-	out_basename=std::string();
-	input_file=std::string();
+	out_basename.clear();
+	input_file.clear();
 	int ptr = 1;
 
 	if(argc<2 || (std::find_if(argv, argv + argc, [](const char *el){return std::strcmp(el, "-h") == 0 || std::strcmp(el, "--help") == 0;}) != (argv + argc))) help();

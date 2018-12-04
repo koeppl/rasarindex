@@ -141,7 +141,8 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     sam_t* sam = &(sams.at(0));
     sam->clear();
     if (opts.z == 0) {
-        idx.exact_locate(std::string(seq->seq.s), opts, [sam, &seq](const std::string& P, const ri::range_t range, std::vector<ulint>& locs) {
+        idx.exact_locate(std::string(seq->seq.s), opts,
+                [sam, &seq](const std::string& P, const ri::range_t range, std::vector<ulint>& locs) {
                 sam->clear();
                 uint m = P.size();
                 sam->query = std::string(seq->name.s);
