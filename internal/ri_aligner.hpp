@@ -178,9 +178,18 @@ namespace ri {
             //  use a lambda function to capture ouput (vector<ulint>) 
             //  F(string, vector<ulint>)
             //  if no locations are found, then locs vector will be empty
+            /*
             template<typename Func>
-            void exact_locate(std::string P, const ri_opts_t& opts, Func f) {
-                vector<ulint> locs;
+            void exact_locate(std::string P, const ri_opts_t& opts, Func f, vector<ulint>& locs) {
+                locs.clear();
+                auto range = fwd.locate_all(P, opts.max_hits, locs);
+                f(P, range, locs);
+            }
+            */
+            template<typename Func>
+            void exact_locate(std::string P, const ri_opts_t& opts, Func f, vector<ulint>& locs) {
+                // vector<ulint> locs;
+                locs.clear();
                 ulint k = 0;
                 range_t range = fwd.full_range();
                 k = fwd.get_last_run_sample();

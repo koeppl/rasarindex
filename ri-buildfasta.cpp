@@ -18,12 +18,14 @@ int sa_rate = 512;
 bool sais=true;
 ulint T = 0;//Build fast index with SA rate = T
 bool fast = false;//build fast index
+bool acgt = false;
 
 void help(){
 	cout << "ri-buildfasta: builds the r-index from a fasta file. Extension .ri is automatically added to output index file" << endl << endl;
 	cout << "Usage: ri-buildfasta [options] <input_fasta_name>" << endl;
 	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
 	cout << "   -b <basename>        bwt algorithm (sais, bigbwt), default:sais"<<endl;
+    cout << "   -acgt                strip out all non-ACGT characters" << endl;
 	//cout << "   -fast                build fast index (O(occ)-time locate, O(r log(n/r)) words of space). By default, "<<endl;
 	//cout << "                        small index is built (O(occ*log(n/r))-time locate, O(r) words of space)"<<endl;
 	//cout << "   -sa_rate <T>         T>0. if used, build the fast index (see option -fast) storing T SA samples before and after each"<<endl;
@@ -69,7 +71,9 @@ void parse_args(char** argv, int argc, int &ptr){
 
 		sais = false;
 
-	}/*else if(s.compare("-fast")==0){
+	} else if (s.compare("-acgt") == 0) {
+        acgt = true;
+    /* } else if(s.compare("-fast")==0){
 
 		fast=true;
 
@@ -85,7 +89,7 @@ void parse_args(char** argv, int argc, int &ptr){
 		ptr++;
 		fast=true;
 
-	}*/else if (s.compare("-b")==0) {
+	*/ } else if (s.compare("-b")==0) {
         if (ptr>=argc-1) {
 			cout << "Error: missing parameter after -b option." << endl;
 			help();
@@ -151,7 +155,7 @@ int main(int argc, char** argv){
         out.write((char*)&fast,sizeof(fast));
         std::cout << "building forward index using bigbwt" << std::endl;
         auto idx = r_index<>();
-        idx.init_bigbwt(input_file);
+        idx.init_bigbwt(input_file, acgt);
         std::cout << "writing forward index to " << path << std::endl;
         idx.serialize(out);
         auto t2 = high_resolution_clock::now();
