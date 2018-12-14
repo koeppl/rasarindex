@@ -58,6 +58,7 @@ namespace ri {
             // TODO: operator= not nyi for r_index
             // TODO: ri-aligner(r_index f, r_index r) fwd(f), rev(r) {}
             // load fwd and reverse indexes from files
+            /*
             ri_aligner(std::string idx_fwd, std::string idx_rev) {
                 // use ri-buildfasta to generate fwd,rev idxs
                 bool fast;
@@ -73,22 +74,67 @@ namespace ri {
                 rev.load(in2);
                 rev_loaded = true;
             }
+            */
 
-            ri_aligner(std::string idx_fwd) {
+            ri_aligner(std::string prefix) {
                 bool fast;
-                ifstream in1(idx_fwd);
-                in1.read((char*)&fast,sizeof(fast));
-                cerr << "loading from file " << idx_fwd << endl;
-                fwd.load(in1);
+                std::string fwd_fname = prefix + ".ri";
+                std::string rev_fname = prefix + ".rev.ri";
+                std::string seq_idx = prefix  + ".1.ri";
+                if (!load_fwd(fwd_fname)) {
+                    cerr << fwd_fname << " does not exist! Exiting...\n";
+                    exit(1);
+                }
+                if (!load_rev(rev_fname)) {
+                    cerr << rev_fname << " does not exist. inexact matching will not be possible\n";
+                }
+                if (!load_seqidx(seq_idx)) {
+                    cerr << seq_idx << " does not exist. output will default to offset into full BWT\n";
+                }
             }
 
-            void load_rev(std::string idx_rev) {
+            bool load_fwd(std::string fname) {
                 bool fast;
-                ifstream in1(idx_rev);
-                in1.read((char*)&fast,sizeof(fast));
-                cerr << "loading from file " << idx_rev << endl;
-                rev.load(in1);
+                ifstream in(fname);
+                if (!in.good()) {
+                   return false;
+                }
+                in.read((char*)&fast,sizeof(fast));
+                cerr << "loading fwd index from file " << fname << endl;
+                fwd.load(in);
+                return true;
+            }
+
+
+            bool load_rev(std::string fname) {
+                bool fast;
+                ifstream in(fname);
+                if (!in.good()) {
+                    return false;
+                }
+                in.read((char*)&fast,sizeof(fast));
+                cerr << "loading reverse index from file " << fname << endl;
+                rev.load(in);
                 rev_loaded = true;
+                return true;
+            }
+
+            bool load_seqidx(std::string fname) {
+                ifstream in(fname);
+                if (!in.good()) {
+                    return false;
+                }
+                std::string seq_name;
+                std::vector<uint64_t> seq_pos;
+                uint64_t pos;
+                while (in >> seq_name >> pos) {
+                    seq_names.push_back(seq_name);
+                    seq_pos.push_back(pos);
+                }
+                seq_bounds = std::move(sdsl::sd_vector<>(seq_pos.begin(), seq_pos.end()));
+                seq_rank = sdsl::sd_vector<>::rank_1_type(&seq_bounds);
+                seq_sel = sdsl::sd_vector<>::select_1_type(&seq_bounds);
+                return true;
             }
 
             std::vector<uint> D_algo(const char* P, const uint m,  std::vector<uint>& D) {
@@ -207,6 +253,12 @@ namespace ri {
                 return;
             }
 
+            std::tuple<std::string, uint64_t> resolve_offset(uint64_t x) {
+                size_t rank = seq_rank(x);
+                size_t offset = x - seq_sel(rank);
+                return std::tuple<std::string, uint64_t>(seq_names[rank-1], offset);
+            }
+
             // iel=inexact_locate
             /*
             template<typename RecurseType=vector<iel_t>>
@@ -313,7 +365,12 @@ namespace ri {
 
         private:
             ri::r_index<> fwd, rev;
+            std::vector<std::string> seq_names;
+            sdsl::sd_vector<> seq_bounds;
+            sdsl::sd_vector<>::rank_1_type seq_rank;
+            sdsl::sd_vector<>::select_1_type seq_sel;
             bool rev_loaded = false;
+            bool fai = false;
             uint mms = 1;
             uint gos = 0;
             uint ges = 0;

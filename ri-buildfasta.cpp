@@ -130,54 +130,38 @@ int main(int argc, char** argv){
 
 	cout << "Building r-index of input file " << input_file << endl;
 
+    auto t1 = high_resolution_clock::now();
+    std::string path;
+    std::ofstream out;
+    path = std::string(out_basename).append(".ri");
+    out = std::ofstream(path);
+    out.write((char*)&fast,sizeof(fast));
+    r_index idx;
     if (bwt_alg == "sais") { // sais forward
-        auto t1 = high_resolution_clock::now();
         std::string input;
         input = read_fasta(std::ifstream(input_file));
         std::string path;
-        std::ofstream out;
-        path = std::string(out_basename).append(".ri");
-        out = std::ofstream(path);
-        out.write((char*)&fast,sizeof(fast));
         std::cout << "building forward index using sais" << std::endl;
-        auto idx = r_index<>(input,sais);
-        std::cout << "writing forward index to " << path << std::endl;
-        idx.serialize(out);
-        auto t2 = high_resolution_clock::now();
-        ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-        cout << "Build time : " << get_time(total) << endl;
+        idx.init_sais(input,true);
     } else if (bwt_alg == "bigbwt") { /* bigbwt forward */
-        auto t1 = high_resolution_clock::now();
-        std::string path;
-        std::ofstream out;
-        path = std::string(out_basename).append(".ri");
-        out = std::ofstream(path);
-        out.write((char*)&fast,sizeof(fast));
         std::cout << "building forward index using bigbwt" << std::endl;
-        auto idx = r_index<>();
+        idx = r_index<>();
         idx.init_bigbwt(input_file, acgt);
-        std::cout << "writing forward index to " << path << std::endl;
-        idx.serialize(out);
-        auto t2 = high_resolution_clock::now();
-        ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-        cout << "Build time : " << get_time(total) << endl;
-    } else  if (bwt_alg == "from_bwt") {
-        auto t1 = high_resolution_clock::now();
-        std::string path;
-        std::ofstream out;
-        path = std::string(out_basename).append(".ri");
-        out = std::ofstream(path);
-        out.write((char*)&fast,sizeof(fast));
+        // next part requires htslib
+        std::string fai_path = std::string(out_basename).append(".1.ri");
+        std::cout << "generating faidx of sequences, saving to" << fai_path << std::endl;
+        ri::build_seqidx(input_file.c_str(), fai_path.c_str());
+    } else if (bwt_alg == "from_bwt") {
         std::cout << "building forward index from existing bwt in "  << input_file << std::endl;
-        auto idx = r_index<>();
+        idx = r_index<>();
         idx.from_bwt(input_file);
-        std::cout << "writing forward index to " << path << std::endl;
-        idx.serialize(out);
-        auto t2 = high_resolution_clock::now();
-        ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-        cout << "Build time : " << get_time(total) << endl;
     } else {
         cerr << "invalid bwt algorithm specified. exiting..." << endl;
         exit(1);
     }
+    auto t2 = high_resolution_clock::now();
+    ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
+    cout << "Build time : " << get_time(total) << endl;
+    std::cout << "writing forward index to " << path << std::endl;
+    idx.serialize(out);
 }

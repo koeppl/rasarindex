@@ -10,12 +10,16 @@
 
 #ifndef R_INDEX_S_H_
 #define R_INDEX_S_H_
+
 #include <definitions.hpp>
 #include <rle_string.hpp>
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 #include "utils.hpp"
 #include "bwt_scan.hpp"
+#include <zlib.h>
+#include "klib/kseq.h"
+KSEQ_INIT(gzFile, gzread);
 
 using namespace sdsl;
 
@@ -27,11 +31,17 @@ template    <    class sparse_bv_type = sparse_sd_vector,
 class r_index{
 public:
     using triple = std::tuple<range_t, ulint, ulint>;
-    r_index(){}
     /*
      * Build index
      */
-    r_index(string &input, bool sais = true){
+    r_index(){} // empty constructor. Should call one of init_sais, init_bigbwt, or init_frombwt
+    r_index(std::string fname, std::string method="bigbwt") {
+        if (method == "bigbwt") { 
+            init_bigbwt(fname, false);
+        }
+    }
+
+    void init_sais(std::string& input, bool sais = true) { 
         this->sais = sais;
         if(contains_reserved_chars(input)){
             cout << "Error: input string contains one of the reserved characters 0x0, 0x1" << endl;
@@ -97,7 +107,9 @@ public:
             pred_to_run[i] = samples_first_vec[i].second;
         }
         cout << " done. " << endl<<endl;
+    
     }
+
 
     /* use big-bwt to create r-index
      * IMPORTANT: takes input FILE NAME, NOT the input string itself!
@@ -694,5 +706,26 @@ private:
     int_vector<> samples_last; //text positions corresponding to last characters in BWT runs, in BWT order
     int_vector<> pred_to_run; //stores the BWT run (0...R-1) corresponding to each position in pred, in text order
 };
+
+// function for building a sequence index out of input fasta, according to specified parameters
+void build_seqidx(const char* infn, const char* outfn) {
+    gzFile read_fp(gzopen(infn, "r"));
+    if (read_fp == nullptr) {
+        fprintf(stderr, "invalid zip file\n");
+        exit(1);
+    }
+    kseq_t *seq(kseq_init(read_fp));
+    uint64_t cp = 0;
+    FILE* ofp = fopen(outfn, "w");
+    while (kseq_read(seq) >= 0) {
+        fprintf(ofp, "%s %llu\n", seq->name.s, cp);
+        cp += seq->seq.l;
+    }
+    fclose(ofp);
+    kseq_destroy(seq);
+    gzclose(read_fp);
 }
+
+}
+
 #endif /* R_INDEX_S_H_ */

@@ -13,11 +13,10 @@ project (s-rlbwt)
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/internal)
 
+# check for SDSL
 find_library(SDSL_LIB sdsl)
 if (NOT SDSL_LIB)
-    # build sdsl from the submodule
-    # TODO: download sdsl and then build
-    message("sdsl-lite not found, building from subdirectory")
+    message("sdsl-lite not found, building from submodule (hopefully you did git clone --recursive)")
     add_subdirectory(sdsl-lite)
     include_directories(${CMAKE_BINARY_DIR}/sdsl-lite/include/)
     include_directories(${CMAKE_BINARY_DIR}/sdsl-lite/external/libdivsufsort/include)
@@ -65,6 +64,7 @@ add_executable(ri-buildfasta ri-buildfasta.cpp)
 TARGET_LINK_LIBRARIES(ri-buildfasta sdsl)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort64)
+TARGET_LINK_LIBRARIES(ri-buildfasta z)
 
 add_executable(ri-align ri-align.cpp)
 TARGET_LINK_LIBRARIES(ri-align sdsl)

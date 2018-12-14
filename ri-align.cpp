@@ -5,9 +5,6 @@
 #include <zlib.h>
 #include <cctype>
 
-#include "klib/kseq.h"
-KSEQ_INIT(gzFile, gzread);
-
 #include "internal/ri_aligner.hpp"
 
 #include "internal/utils.hpp"
@@ -24,6 +21,7 @@ struct sam_t {
     }
     std::string query = "";
     uint32_t flag = 4;
+    std::vector<std::string> refs;
     std::vector<ulint> locs;
     std::string CIGAR = "";
     std::string seq = "";
@@ -32,6 +30,7 @@ struct sam_t {
     void clear() {
         query.clear();
         flag = 0;
+        refs.clear();
         locs.clear();
         seq.clear();
         qual.clear();
@@ -77,18 +76,19 @@ std::ostream& operator <<(std::ostream& os, const sam_t& s) {
 
 void samprintf(FILE* fp, const sam_t& s) {
     if (s.locs.size()) {
-        for (auto it = s.locs.begin(); it != s.locs.end(); ++it) {
+        // for (auto it = s.locs.begin(); it != s.locs.end(); ++it) {
+        for (size_t i = 0; i <  s.refs.size(); ++i) {
             fprintf(fp, "%s\t", s.query.c_str());
-            if (it == s.locs.begin()) fprintf(fp, "%d\t", s.flag);
+            if (!i) fprintf(fp, "%d\t", s.flag);
             else fprintf(fp, "%d\t", (s.flag | 256));
-            fprintf(fp, "*\t");
-            fprintf(fp, "%llu\t", (*it)+1);
+            fprintf(fp, "%s\t", s.refs[i].c_str());
+            fprintf(fp, "%llu\t", s.locs[i]+1);
             fprintf(fp, "*\t"); // MAPQ
             fprintf(fp, "%s\t", s.CIGAR.c_str()); // CIGAR
             fprintf(fp, "*\t"); // RNEXT
             fprintf(fp, "0\t"); // PNEXT
             fprintf(fp, "0\t"); // TLEN
-            if (it == s.locs.begin()) fprintf(fp, "%s\t%s", s.seq.c_str(), s.qual.c_str());
+            if (!i) fprintf(fp, "%s\t%s", s.seq.c_str(), s.qual.c_str());
             else fprintf(fp, "*\t*");
             if (s.tags.size()) {
                 fprintf(fp, "\t");
@@ -167,19 +167,26 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
     if (opts.z == 0) {
         std::string s(seq->seq.s);
         std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-        idx.exact_locate(s, opts, [sam, &seq](const std::string& P, const ri::range_t range, std::vector<ulint>& locs) {
+        idx.exact_locate(s, opts, [&](const std::string& P, const ri::range_t range, std::vector<ulint>& ls) {
                 sam->clear();
                 uint m = P.size();
                 sam->query = std::string(seq->name.s);
                 sam->CIGAR = std::to_string(m) + "M";
                 sam->seq = std::string(seq->seq.s);
                 sam->qual = std::string(seq->qual.s);
-                sam->flag  = locs.size() ? 0 : 4;
+                sam->flag  = ls.size() ? 0 : 4;
                 std::ostringstream tag_stream;
                 // add tags here
                 tag_stream << "NH:i:" << range.second-range.first+1;
                 sam->tags.push_back(tag_stream.str());
-                sam->locs.swap(locs);
+                // sam->locs.swap(locs);
+                for (auto it = ls.begin(); it != ls.end(); ++it) {
+                    std::string ref;
+                    uint64_t loc;
+                    std::tie(ref, loc) = idx.resolve_offset(*it);
+                    sam->refs.push_back(ref);
+                    sam->locs.push_back(loc);
+                }
                 samprintf(stdout, *sam);
                 }, locs);
     }
@@ -242,7 +249,7 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
     std::string text;
 
     fprintf(stderr, "loading fwd/rev r-index\n" );
-    idx_t idx(string(idx_pre).append(".ri")); // , string(idx_pre).append(".rev.ri"));
+    idx_t idx(idx_pre); // , string(idx_pre).append(".rev.ri"));
     // idx_t idx;
     // std::ifstream ifs(string(idx_pre).append(".ri"));
     // bool f;
