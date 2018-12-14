@@ -188,7 +188,8 @@ size_t locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sams) {
                     sam->locs.push_back(loc);
                 }
                 samprintf(stdout, *sam);
-                }, locs);
+            },
+        locs);
     }
     return sam->locs.size();
 }

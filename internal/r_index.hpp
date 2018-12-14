@@ -60,11 +60,8 @@ public:
         bwt = rle_string_t(bwt_s);
         //build F column
         F = vector<ulint>(256,0);
-        for(uchar c : bwt_s)
-            F[c]++;
-        for(ulint i=255;i>0;--i)
-            F[i] = F[i-1];
-        F[0] = 0;
+        for(const uchar c : bwt_s)
+            ++F[c + 1];
         for(ulint i=1;i<256;++i)
             F[i] += F[i-1];
         for(ulint i=0;i<bwt_s.size();++i)
