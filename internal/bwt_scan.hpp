@@ -111,7 +111,7 @@ std::tuple<uint64_t, uint64_t> bwt_scan_ssa(std::string bwt_fname, std::vector<s
         ffs << i << " " << F[i] << endl;
     }
     */
-    return {n, r};
+    return std::tuple<uint64_t,uint64_t>(n,r);
 }
 
 #endif
