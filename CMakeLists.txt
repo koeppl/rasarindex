@@ -71,3 +71,7 @@ TARGET_LINK_LIBRARIES(ri-align sdsl)
 TARGET_LINK_LIBRARIES(ri-align divsufsort)
 TARGET_LINK_LIBRARIES(ri-align divsufsort64)
 TARGET_LINK_LIBRARIES(ri-align z)
+
+
+install(TARGETS ri-align DESTINATION bin)
+install(TARGETS ri-buildfasta DESTINATION bin)

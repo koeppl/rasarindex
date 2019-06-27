@@ -136,7 +136,7 @@ int main(int argc, char** argv){
     path = std::string(out_basename).append(".ri");
     out = std::ofstream(path);
     out.write((char*)&fast,sizeof(fast));
-    r_index idx;
+    r_index<> idx;
     if (bwt_alg == "sais") { // sais forward
         std::string input;
         input = read_fasta(std::ifstream(input_file));
