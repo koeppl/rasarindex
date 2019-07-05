@@ -12,7 +12,7 @@ using namespace ri;
 using namespace std;
 
 string out_basename=string();
-string bwt_alg="sais";
+string bwt_alg="bigbwt";
 string input_file=string();
 int sa_rate = 512;
 bool sais=true;
@@ -24,14 +24,12 @@ void help(){
 	cout << "ri-buildfasta: builds the r-index from a fasta file. Extension .ri is automatically added to output index file" << endl << endl;
 	cout << "Usage: ri-buildfasta [options] <input_fasta_name>" << endl;
 	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
-	cout << "   -b <basename>        bwt algorithm (sais, bigbwt), default:sais"<<endl;
+	cout << "   -b <basename>        bwt algorithm (bigbwt, sais), default:bigbwt"<<endl;
     cout << "   -acgt                strip out all non-ACGT characters" << endl;
 	//cout << "   -fast                build fast index (O(occ)-time locate, O(r log(n/r)) words of space). By default, "<<endl;
 	//cout << "                        small index is built (O(occ*log(n/r))-time locate, O(r) words of space)"<<endl;
 	//cout << "   -sa_rate <T>         T>0. if used, build the fast index (see option -fast) storing T SA samples before and after each"<<endl;
 	//cout << "                        BWT equal-letter run. O(r*T) words of space, O(occ(log(n/r)/T) + log(n/r))-time locate. "<<endl;
-	cout << "   -divsufsort          use divsufsort algorithm to build the BWT (fast, 7.5n Bytes of RAM). By default,"<<endl;
-	cout << "                        SE-SAIS is used (about 4 time slower than divsufsort, 4n Bytes of RAM)."<<endl;
 	cout << "   <input_file_name>    input text file." << endl;
 	exit(0);
 }

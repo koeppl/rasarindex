@@ -78,12 +78,12 @@ void samprintf(FILE* fp, const sam_t& s) {
     if (s.locs.size()) {
         // for (auto it = s.locs.begin(); it != s.locs.end(); ++it) {
         for (size_t i = 0; i <  s.refs.size(); ++i) {
-            fprintf(fp, "%s\t", s.query.c_str());
-            if (!i) fprintf(fp, "%d\t", s.flag);
+            fprintf(fp, "%s\t", s.query.c_str()); // query name
+            if (!i) fprintf(fp, "%d\t", s.flag); // flag
             else fprintf(fp, "%d\t", (s.flag | 256));
             fprintf(fp, "%s\t", s.refs[i].c_str());
             fprintf(fp, "%llu\t", s.locs[i]+1);
-            fprintf(fp, "*\t"); // MAPQ
+            fprintf(fp, "255\t"); // MAPQ
             fprintf(fp, "%s\t", s.CIGAR.c_str()); // CIGAR
             fprintf(fp, "*\t"); // RNEXT
             fprintf(fp, "0\t"); // PNEXT
@@ -232,7 +232,7 @@ size_t piecewise_locate(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& 
             samprintf(stdout, sam);
             sams.push_back(std::move(sam));
             });
-    fprintf(stderr, "%s has %llu pieces\n", seq->name.s, sams.size());
+    // fprintf(stderr, "%s has %llu pieces\n", seq->name.s, sams.size());
     return sams.size();
 }
 
@@ -249,7 +249,7 @@ template<size_t (*F)(idx_t&, kseq_t*, ri_opts_t, vector<sam_t>&)>
 void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri_opts_t opts){
     std::string text;
 
-    fprintf(stderr, "loading fwd/rev r-index\n" );
+    // fprintf(stderr, "loading fwd/rev r-index\n" );
     idx_t idx(idx_pre); // , string(idx_pre).append(".rev.ri"));
     // idx_t idx;
     // std::ifstream ifs(string(idx_pre).append(".ri"));
@@ -259,7 +259,7 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
     // LOAD IDX HERE
 
     /* read fastq here, search as we go*/
-    std::fprintf(stderr, "Reading from fastq file\n");
+    // std::fprintf(stderr, "Reading from fastq file\n");
     gzFile read_fp(gzopen(patterns.c_str(), "r"));
     if (read_fp == nullptr) {
         fprintf(stderr, "invalid zip file\n");
@@ -270,10 +270,17 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
     sam_t s;
     sams.push_back(s);
 
+    if (opts.algo == "locate" || opts.algo == "pw_locate") {
+        fprintf(stdout, "@HD\tVN:1.6\tSO:unknown\n");
+        std::vector<std::string> names;
+        std::vector< std::pair<std::string, uint64_t> > seq_names_and_lengths(idx.get_ref_names_and_lengths());
+        for (auto i: seq_names_and_lengths) {
+            fprintf(stdout, "@SQ\tSN:%s\tLN:%d\n", i.first.data(), i.second);
+        }
+    }
+
     size_t total_occs = 0;
     size_t occs = 1;
-    // size_t patts = 1;
-
     auto start = std::chrono::system_clock::now();
     {
         // vector<char> buf(1 << 16);
@@ -321,12 +328,15 @@ int main(int argc, char** argv){
     opts.max_hits = max_hits;
     opts.max_range = max_range;
     opts.z = z;
-    fprintf(stderr, "Loading r-index (parameters: %llu, %llu, %llu)\n", max_hits , max_range,  z );
+    // fprintf(stderr, "Loading r-index (parameters: %llu, %llu, %llu)\n", max_hits , max_range,  z );
     if (program == "locate") {
+        opts.algo = "locate";
         read_and_locate<locate>(idx_pre, patt_file, niter, opts);
     } else if (program == "count") {
+        opts.algo = "count";
         read_and_locate<count>(idx_pre, patt_file, niter, opts);
     } else if (program == "pw_locate") {
+        opts.algo = "pw_locate";
         read_and_locate<piecewise_locate>(idx_pre, patt_file, niter, opts);
     }
     /*

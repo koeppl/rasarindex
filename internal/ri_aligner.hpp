@@ -14,6 +14,7 @@ namespace ri {
         ulint max_hits = (ulint)-1;
         ulint max_range = (ulint)-1;
         uint z = 0;
+        std::string algo = "";
     };
 
     struct partial_aln {
@@ -86,7 +87,7 @@ namespace ri {
                     exit(1);
                 }
                 if (!load_rev(rev_fname)) {
-                    cerr << rev_fname << " does not exist. inexact matching will not be possible\n";
+                    // cerr << rev_fname << " does not exist. inexact matching will not be possible\n";
                 }
                 if (!load_seqidx(seq_idx)) {
                     cerr << seq_idx << " does not exist. output will default to offset into full BWT\n";
@@ -100,7 +101,7 @@ namespace ri {
                    return false;
                 }
                 in.read((char*)&fast,sizeof(fast));
-                cerr << "loading fwd index from file " << fname << endl;
+                // cerr << "loading fwd index from file " << fname << endl;
                 fwd.load(in);
                 return true;
             }
@@ -126,6 +127,7 @@ namespace ri {
                 }
                 std::string seq_name;
                 std::vector<uint64_t> seq_pos;
+                uint64_t prev_pos = 0;
                 uint64_t pos;
                 while (in >> seq_name >> pos) {
                     seq_names.push_back(seq_name);
@@ -257,6 +259,19 @@ namespace ri {
                 size_t rank = seq_rank(x);
                 size_t offset = x - seq_sel(rank);
                 return std::tuple<std::string, uint64_t>(seq_names[rank-1], offset);
+            }
+
+
+            std::vector< std::pair<std::string, uint64_t> > get_ref_names_and_lengths() {
+                std::vector<std::pair<std::string, uint64_t>> lengths;
+                uint64_t prev_pos = 0;
+                for (auto i = 0; i < seq_names.size() - 1; ++i) {
+                    auto x = seq_sel(i + 2);
+                    lengths.push_back(std::make_pair(seq_names[i], x - prev_pos)); 
+                    prev_pos = x;
+                }
+                lengths.push_back(std::make_pair(seq_names[seq_names.size()-1], fwd.text_size() - prev_pos));
+                return lengths;
             }
 
             // iel=inexact_locate
