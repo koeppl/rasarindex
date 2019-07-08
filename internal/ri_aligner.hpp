@@ -175,9 +175,22 @@ namespace ri {
                 return D_algo(P.c_str(), P.size(), D);
             }
 
-            range_t exact_count(std::string& P) {
-                range_t count = fwd.count(P);
-                return count;
+            range_t exact_count(const std::string& P) {
+                return fwd.count(P);
+            }
+
+            std::pair<range_t, ulint> exact_count_longest_suffix(const std::string& P) {
+                auto range = fwd.full_range();
+                ulint m = P.size();
+                ulint i = 0;
+                auto prev_range = range;
+                for(i=0; i<m && range.second >= range.first; ++i) {
+                    prev_range = range;
+                    range = fwd.LF(range,P[m-i-1]);
+                }
+                if (range.second < range.first)
+                    return std::make_pair(prev_range, i - 1);
+                return std::make_pair(range, m);
             }
 
             // iec=inexact_count

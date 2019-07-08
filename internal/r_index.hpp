@@ -291,7 +291,7 @@ public:
     /*
      * Return BWT range of pattern P
      */
-    range_t count(string &P){
+    range_t count(const string &P){
         auto range = full_range();
         ulint m = P.size();
         for(ulint i=0;i<m and range.second>=range.first;++i)

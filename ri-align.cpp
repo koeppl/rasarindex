@@ -154,9 +154,12 @@ size_t count(idx_t& idx, kseq_t* seq, ri_opts_t opts, vector<sam_t>& sam) {
     sam.clear();
     ulint count = 0;
     std::string s = std::string(seq->seq.s);
-    auto range = idx.exact_count(s);
+    // auto range = idx.exact_count(s);
+    range_t range;
+    ulint suffix_size;
+    std::tie(range, suffix_size) = idx.exact_count_longest_suffix(s);
     count = (range.second >= range.first) ? range.second - range.first + 1 : 0;
-    fprintf(stdout, "%s\t%llu\n", seq->name.s, count);
+    fprintf(stdout, "%s\t%llu/%llu\t%llu\n", seq->name.s, suffix_size, s.size(), count);
     return count;
 }
 
