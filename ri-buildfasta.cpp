@@ -34,17 +34,19 @@ void help(){
 	exit(0);
 }
 
-std::string read_fasta(std::ifstream input_file) {
-    std::string input;
-    std::string line;
-    /* newlines won't be added to index */
-    while(getline(input_file, line)) {
-        /* deliberately ignoring record name lines */
-        if (line[0] != '>') {
-            std::transform(line.begin(), line.end(), line.begin(), ::toupper);
-            input += line;
-        }
+std::string read_fasta(std::string input_file) {
+    kseq_t *seq;
+    int l;
+    gzFile fp = gzopen(input_file.c_str(), "r");
+    seq = kseq_init(fp);
+    std::string input("");
+    while ((l = kseq_read(seq)) >= 0) {
+        std::string line(seq->seq.s);
+        std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+        input += line;
     }
+    kseq_destroy(seq);
+    gzclose(fp);
     return input;
 }
 
@@ -136,8 +138,7 @@ int main(int argc, char** argv){
     out.write((char*)&fast,sizeof(fast));
     r_index<> idx;
     if (bwt_alg == "sais") { // sais forward
-        std::string input;
-        input = read_fasta(std::ifstream(input_file));
+        std::string input(read_fasta(input_file));
         std::string path;
         std::cout << "building forward index using sais" << std::endl;
         idx.init_sais(input,true);
