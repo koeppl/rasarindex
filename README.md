@@ -6,6 +6,40 @@ Fork of `r-index` (see below) that uses pfBWT as the BWT-construction algorithm
 (https://gitlab.com/manzai/Big-BWT/tree/master) and to index+locate DNA
 sequences. 
 
+### To compile:
+
+1) Clone repository
+
+```
+git clone --recursive https://github.com/alshai/r-index
+```
+
+2) Install required packages:
+
+```
+apt-get update -qq && \
+apt-get install -y zlib1g-dev git cmake build-essential python3
+```
+
+3) Compile BigBWT and add to path
+
+```
+cd Big-BWT
+make
+export PATH=$(pwd):$PATH
+cd ..
+```
+
+4) compile and install
+
+```
+mkdir build
+cd build
+cmake ..
+make
+make install
+```
+
 ### To run:
 
 To build index from a fasta file (outputs to `input.fa.ri`):
@@ -14,29 +48,18 @@ To build index from a fasta file (outputs to `input.fa.ri`):
 ri-buildfasta -b <bigbwt|sais|from_bwt> input.fa
 ```
 
+To count queries in a fast[a|q] file:
+
+```
+ri-align count index_prefix reads.fq
+```
 
 To locate queries in a fast[a|q] file:
 
 ```
-ri-align --max-hits (default:-1) --max-range (default:-1) [locate|count] index_prefix reads.fq
+ri-align --max-hits (default:-1) --max-range (default:-1) count index_prefix reads.fq
 ```
 
-
-### Extra Compilation Notes:
-
-if `sdsl-lite` is not already installed, a local installation will be build. If
-this is the case, make sure that you clone this repo using the `--recursive` option or
-run `git submodule update --init --recursive`
-
-You will have to make `Big-BWT` directly and add the directory containing all
-the binaries associated with it to `$PATH`. (We plan to directly integrate
-`Big-BWT` into `r-index` in the future`.
-
-```
-cd Big-BWT
-make
-export PATH="$PATH:$(readlink -f .)"
-```
 
 
 ORIGINAL README
