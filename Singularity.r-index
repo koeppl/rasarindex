@@ -15,13 +15,8 @@ apt-get -y install time build-essential zlib1g-dev git cmake python3
 
 # installing r-index!
 
-git clone https://github.com/alshai/r-index
+git clone --recursive https://github.com/alshai/r-index
 cd r-index
-git submodule update --init --recursive
-cd sdsl-lite
-cmake .
-make
-cd ..
 cd Big-BWT
 make
 cd ..
@@ -29,15 +24,9 @@ mkdir build
 cd build
 cmake ..
 make ri-align ri-buildfasta
-cd ~/
+make install
 
 %environment
 
 export PATH=$PATH:/r-index/build/
 export PATH=$PATH:/r-index/Big-BWT/
-
-%apprun ri-buildfasta
-exec /usr/bin/time -v ri-buildfasta "$@"
-
-%apprun ri-align
-exec /usr/bin/time -v ri-align "$@"
