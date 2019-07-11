@@ -44,21 +44,12 @@ apt-get update -qq && \
 apt-get install -y zlib1g-dev git cmake build-essential python3
 ```
 
-3) Compile BigBWT and add to path
-
-```
-cd Big-BWT
-make
-export PATH=$(pwd):$PATH
-cd ..
-```
-
-4) compile and install
+3) compile and install
 
 ```
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_INSTALL_PREFIX=<installation dir> ..
 make
 make install
 ```
