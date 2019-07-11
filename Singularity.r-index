@@ -17,16 +17,8 @@ apt-get -y install time build-essential zlib1g-dev git cmake python3
 
 git clone --recursive https://github.com/alshai/r-index
 cd r-index
-cd Big-BWT
-make
-cd ..
 mkdir build
 cd build
 cmake ..
-make ri-align ri-buildfasta
+make
 make install
-
-%environment
-
-export PATH=$PATH:/r-index/build/
-export PATH=$PATH:/r-index/Big-BWT/

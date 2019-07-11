@@ -10,9 +10,9 @@ RUN apt-get update -qq && \
                     cmake \
                     build-essential \
                     python3
-RUN cd Big-BWT; make; cd ..; 
-ENV PATH /build/Big-BWT:$PATH
-RUN rm -rf build; mkdir -p build; cd build; cmake ..; make; make install
+# RUN cd Big-BWT; make; cd ..; 
+# ENV PATH /build/Big-BWT:$PATH
+RUN rm -rf build; mkdir build; cd build; cmake ..; make; make install
 
 WORKDIR /app
 
