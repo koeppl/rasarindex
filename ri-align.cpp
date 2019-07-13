@@ -296,7 +296,7 @@ void read_and_locate(std::string idx_pre, std::string patterns, size_t niter, ri
         }
     }
     auto stop = std::chrono::system_clock::now();
-    fprintf(stderr, "Time per pattern: %.5f\n", (std::chrono::duration<double>(stop - start).count()));
+    fprintf(stderr, "Total time: %.5fs\n", (std::chrono::duration<double>(stop - start).count()));
     kseq_destroy(seq);
     gzclose(read_fp);
 }
