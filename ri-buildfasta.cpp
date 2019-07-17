@@ -1,37 +1,80 @@
-// ri-buildfasta.cpp - modified from ri-build.cpp by Taher Mun
-// March 20 2018
-
-#include <iostream>
+#include <cstdio>
 #include <algorithm>
 #include <chrono>
+#include <string>
+#include <getopt.h>
 
-#include "utils.hpp"
+#include <iostream>
+#include "internal/utils.hpp"
 #include "internal/r_index.hpp"
 
-using namespace ri;
-using namespace std;
+using std::cout;
+using std::cerr;
 
-string out_basename=string();
-string bwt_alg="bigbwt";
-string input_file=string();
-int sa_rate = 512;
-bool sais=true;
-ulint T = 0;//Build fast index with SA rate = T
-bool fast = false;//build fast index
-bool acgt = false;
+struct ribuild_args {
+    std::string input_fname = "";
+    std::string outpre = "";
+    std::string bwt_alg = "bigbwt";
+    int threads = 1;
+    bool acgt = false;
+};
 
-void help(){
-	cout << "ri-buildfasta: builds the r-index from a fasta file. Extension .ri is automatically added to output index file" << endl << endl;
-	cout << "Usage: ri-buildfasta [options] <input_fasta_name>" << endl;
-	cout << "   -o <basename>        use 'basename' as prefix for all index files. Default: basename is the specified input_file_name"<<endl;
-	cout << "   -b <basename>        bwt algorithm (bigbwt, sais), default:bigbwt"<<endl;
-    cout << "   -acgt                strip out all non-ACGT characters" << endl;
-	//cout << "   -fast                build fast index (O(occ)-time locate, O(r log(n/r)) words of space). By default, "<<endl;
-	//cout << "                        small index is built (O(occ*log(n/r))-time locate, O(r) words of space)"<<endl;
-	//cout << "   -sa_rate <T>         T>0. if used, build the fast index (see option -fast) storing T SA samples before and after each"<<endl;
-	//cout << "                        BWT equal-letter run. O(r*T) words of space, O(occ(log(n/r)/T) + log(n/r))-time locate. "<<endl;
-	cout << "   <input_file_name>    input text file." << endl;
-	exit(0);
+void print_help() {
+	fprintf(stderr, "ri-buildfasta: builds the r-index from a fasta file. Extension .ri is automatically added to output index file\n");
+	fprintf(stderr, "Usage: ri-buildfasta [options] <input_fasta_name>\n");
+	fprintf(stderr, "    --output_prefix <basename>\n"); 
+	fprintf(stderr, "    -o <basename>                  use 'basename' as prefix for all index files. Default: basename is the specified input_file_name\n");
+	fprintf(stderr, "    --bwt_alg <alg>\n");
+	fprintf(stderr, "    -b <alg>                       bwt algorithm (bigbwt, sais), default:bigbwt\n");
+    fprintf(stderr, "    --threads <int>\n");
+    fprintf(stderr, "    -t <int>                       number of threads for parallelized construction. parallelism not yet supported for gzipped files\n");
+    fprintf(stderr, "    --acgt\n");
+    fprintf(stderr, "    -a                             strip out all non-ACGT characters from the input (this means Ns will also be removed)\n");
+	fprintf(stderr, "    <input_file_name>              input text file.\n");
+}
+
+ribuild_args parse_args(int argc, char** argv) {
+    int c;
+    char* end;
+    ribuild_args args;
+    static struct option long_options[] {
+        {"output_prefix", required_argument, 0, 'o'},
+        {"bwt_alg", required_argument, 0, 'b'},
+        {"acgt", no_argument, 0, 'a'},
+        {"threads", required_argument, 0, 't'}
+    };
+    int long_index = 0;
+    while((c = getopt_long(argc, argv, "o:b:at:", long_options, &long_index)) != -1) { 
+        switch (c) {
+            case 'o':
+                args.outpre = optarg;
+                break;
+            case 'b':
+                args.bwt_alg = optarg;
+                break;
+            case 'a':
+                args.acgt = true;
+                break;
+            case 't':
+                args.threads = std::strtoul(optarg, &end, 10);
+                break;
+            default:
+                print_help();
+                exit(1);
+                break;
+        }
+    }
+
+    if (argc - optind < 1) {
+        fprintf(stderr, "no argument provided\n");
+        exit(1);
+    }
+
+    args.input_fname = argv[optind];
+    if (args.outpre == "") {
+        args.outpre = args.input_fname;
+    }
+    return args;
 }
 
 std::string read_fasta(std::string input_file) {
@@ -50,117 +93,34 @@ std::string read_fasta(std::string input_file) {
     return input;
 }
 
-void parse_args(char** argv, int argc, int &ptr){
-
-	assert(ptr<argc);
-
-	string s(argv[ptr]);
-	ptr++;
-
-	if(s.compare("-o")==0){
-
-		if(ptr>=argc-1){
-			cout << "Error: missing parameter after -o option." << endl;
-			help();
-		}
-
-		out_basename = string(argv[ptr]);
-		ptr++;
-
-	}else if(s.compare("-divsufsort")==0){
-
-		sais = false;
-
-	} else if (s.compare("-acgt") == 0) {
-        acgt = true;
-    /* } else if(s.compare("-fast")==0){
-
-		fast=true;
-
-	}else if(s.compare("-T")==0){
-
-		T = atoi(argv[ptr]);
-
-		if(T<=0){
-			cout << "Error: parameter T must be T>0" << endl;
-			help();
-		}
-
-		ptr++;
-		fast=true;
-
-	*/ } else if (s.compare("-b")==0) {
-        if (ptr>=argc-1) {
-			cout << "Error: missing parameter after -b option." << endl;
-			help();
-		}
-		bwt_alg = string(argv[ptr]);
-		ptr++;
-    } else{
-		cout << "Error: unrecognized '" << s << "' option." << endl;
-		help();
-	}
-
-}
-
-int main(int argc, char** argv){
-
-	using std::chrono::high_resolution_clock;
-	using std::chrono::duration_cast;
-	using std::chrono::duration;
-
-
-	//parse options
-
-	out_basename.clear();
-	input_file.clear();
-	int ptr = 1;
-
-	if(argc<2 || (std::find_if(argv, argv + argc, [](const char *el){return std::strcmp(el, "-h") == 0 || std::strcmp(el, "--help") == 0;}) != (argv + argc))) help();
-
-	while(ptr<argc-1)
-		parse_args(argv, argc, ptr);
-
-	input_file = std::string(argv[ptr]);
-
-	if(out_basename.compare("")==0)
-		out_basename = std::string(input_file);
-
-
-
-	cout << "Building r-index of input file " << input_file << endl;
-
-    auto t1 = high_resolution_clock::now();
-    std::string path;
-    std::ofstream out;
-    path = std::string(out_basename).append(".ri");
-    out = std::ofstream(path);
-    out.write((char*)&fast,sizeof(fast));
-    r_index<> idx;
-    if (bwt_alg == "sais") { // sais forward
-        std::string input(read_fasta(input_file));
-        std::string path;
+int main(int argc, char** argv) {
+    ribuild_args args(parse_args(argc, argv));
+    bool fast = false;
+    std::string path(args.outpre + ".ri");
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::ofstream out(path);
+    out.write((char*) &fast, sizeof(fast));
+    ri::r_index<> idx;
+    if (args.bwt_alg == "sais") {
+        std::string input(read_fasta(args.input_fname));
         std::cout << "building forward index using sais" << std::endl;
         idx.init_sais(input,true);
-    } else if (bwt_alg == "bigbwt") { /* bigbwt forward */
+    } else if (args.bwt_alg == "bigbwt") {
         std::cout << "building forward index using bigbwt" << std::endl;
-        idx = r_index<>();
-        idx.init_bigbwt(input_file, acgt);
-        // next part requires htslib
-        std::string fai_path = std::string(out_basename).append(".1.ri");
+        idx.init_bigbwt(args.input_fname, args.acgt);
+        std::string fai_path(args.outpre + ".1.ri");
         std::cout << "generating faidx of sequences, saving to" << fai_path << std::endl;
-        ri::build_seqidx(input_file.c_str(), fai_path.c_str());
-    } else if (bwt_alg == "from_bwt") {
-        std::cout << "building forward index from existing bwt in "  << input_file << std::endl;
-        idx = r_index<>();
-        idx.from_bwt(input_file);
+        ri::build_seqidx(args.input_fname.c_str(), fai_path.c_str());
+    } else if (args.bwt_alg == "from_bwt") {
+        std::cout << "building forward index from existing bwt in "  << args.input_fname << std::endl;
+        idx.from_bwt(args.input_fname);
     } else {
-        cerr << "invalid bwt algorithm specified. exiting..." << endl;
+        std::cerr << "\"" << args.bwt_alg << "\" is an invalid bwt algortihm. Please use one of [sais, bigbwt, from_bwt]" << std::endl;
         exit(1);
     }
-    auto t2 = high_resolution_clock::now();
-    ulint total = duration_cast<duration<double, std::ratio<1>>>(t2 - t1).count();
-    cout << "Build time : " << get_time(total) << endl;
+    auto t2 = std::chrono::high_resolution_clock::now();
+    ulint total = std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(t2 - t1).count();
+    std::cout << "Build time : " << get_time(total) << endl;
     std::cout << "writing forward index to " << path << std::endl;
     idx.serialize(out);
 }
