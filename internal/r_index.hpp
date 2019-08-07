@@ -35,9 +35,9 @@ public:
      * Build index
      */
     r_index(){} // empty constructor. Should call one of init_sais, init_bigbwt, or init_frombwt
-    r_index(std::string fname, std::string method="bigbwt") {
+    r_index(std::string fname, std::string method="bigbwt", uint32_t nthreads=1) {
         if (method == "bigbwt") { 
-            init_bigbwt(fname, false);
+            init_bigbwt(fname, nthreads);
         }
     }
 
@@ -114,11 +114,11 @@ public:
      * idx = r_index();
      * idx.init(fname);
      */
-    void init_bigbwt(std::string fname, bool acgt=false) {
+    void init_bigbwt(std::string fname, uint32_t nthreads=1) {
         std::vector<std::pair<ulint, ulint>> samples_first_vec;
         std::vector<ulint> samples_last_vec;
         cout << "(1/3) Building BWT..." << endl;
-        std::string bwt_fname = bigbwt(fname, true, acgt);
+        std::string bwt_fname = bigbwt(fname, true, nthreads);
         /* make sure we only read fname+".*" after this, NOT fname itself */
         cout << "done.\n(2/3) RLE encoding BWT and computing SA samples... " << endl;
         std::ifstream ifs(bwt_fname);
@@ -581,12 +581,14 @@ private:
     }
 
     /* TODO: do this. */
-    std::string bigbwt(std::string fname, bool fasta, bool acgt) {
-        // TODO: handle reverse string
+    std::string bigbwt(std::string fname, bool fasta, uint32_t nthreads) {
+        // if (nthreads == 1) nthreads = 0; // force use of newscanNT.x for single thread
         // BWT CONSTRUCTION
-        std::string command = "bigbwt " + fname;
-        if (fasta) command += " -e -s -f"; // tell bigbwt to process fasta file
-        if (acgt) command += " -a";
+        std::string command = "/home/taher/r-index/Big-BWT/bigbwt " + fname;
+        if (fasta) command += " -f"; // tell bigbwt to process fasta file
+        command += " -t " + std::to_string(nthreads);
+        command += " -e -s";
+        cout << "executing command: " << command << endl;
         system(command.c_str());
         // file saved to ${fname}.bwt
         return fname + ".bwt";
