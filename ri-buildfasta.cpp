@@ -15,7 +15,7 @@ struct ribuild_args {
     std::string input_fname = "";
     std::string outpre = "";
     std::string bwt_alg = "bigbwt";
-    uint32_t threads = 1;
+    uint32_t threads = 0;
     bool acgt = false;
 };
 
