@@ -1,6 +1,3 @@
 [submodule "klib"]
 	path = klib
 	url = https://github.com/attractivechaos/klib.git
-[submodule "Big-BWT"]
-	path = Big-BWT
-	url = https://github.com/alshai/Big-BWT.git
