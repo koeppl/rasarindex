@@ -12,14 +12,27 @@ project (s-rlbwt)
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/internal)
-add_subdirectory(${PROJECT_SOURCE_DIR}/Big-BWT)
+# add_subdirectory(${PROJECT_SOURCE_DIR}/Big-BWT)
+
+set(CMAKE_INSTALL_INCLUDEDIR "include") # This is an hack because include(GUIInstallDirs) doesn't work
+include(FetchContent)
+## Add Big-BWT
+FetchContent_Declare(
+  bigbwt
+  GIT_REPOSITORY https://github.com/alshai/Big-BWT.git
+  )
+  
+FetchContent_GetProperties(bigbwt)
+if(NOT bigbwt_POPULATED)
+  FetchContent_Populate(bigbwt)
+  add_subdirectory(${bigbwt_SOURCE_DIR} ${bigbwt_BINARY_DIR})
+    
+  endif()
 
 # check for SDSL
 find_library(SDSL_LIB sdsl)
 if (NOT SDSL_LIB)
     message("sdsl-lite not found, building as external content")
-    set(CMAKE_INSTALL_INCLUDEDIR "include") # This is an hack because include(GUIInstallDirs) doesn't work
-    include(FetchContent)
 
     ## Add sdsl
     FetchContent_Declare(

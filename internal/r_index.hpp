@@ -584,7 +584,8 @@ private:
     std::string bigbwt(std::string fname, bool fasta, uint32_t nthreads) {
         // if (nthreads == 1) nthreads = 0; // force use of newscanNT.x for single thread
         // BWT CONSTRUCTION
-        std::string command = "bigbwt " + fname;
+        // std::string command = "bigbwt " + fname;
+        std::string command = "_deps/bigbwt-build/bigbwt " + fname;
         if (fasta) command += " -f"; // tell bigbwt to process fasta file
         command += " -t " + std::to_string(nthreads);
         command += " -e -s";
