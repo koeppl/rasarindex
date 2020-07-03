@@ -1,9 +1,6 @@
 [submodule "klib"]
 	path = klib
 	url = https://github.com/attractivechaos/klib.git
-[submodule "sdsl-lite"]
-	path = sdsl-lite
-	url = https://github.com/simongog/sdsl-lite.git
 [submodule "Big-BWT"]
 	path = Big-BWT
 	url = https://github.com/alshai/Big-BWT.git
