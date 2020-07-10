@@ -471,7 +471,7 @@ public:
         return (samples_last[r-1]+1) % bwt.size();
     }
 
-private:
+protected:
 
     /*
      * returns <<l,r>, SA[r] >, where l,r are the inclusive ranges of the pattern P. If P does not occur, then l>r

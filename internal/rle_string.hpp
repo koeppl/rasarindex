@@ -387,7 +387,7 @@ public:
         }
     }
 
-private:
+protected:
 
     static ulint count_runs(string &s){
         ulint runs=1;
