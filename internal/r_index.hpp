@@ -18,7 +18,7 @@
 #include "utils.hpp"
 #include "bwt_scan.hpp"
 #include <zlib.h>
-#include "klib/kseq.h"
+#include <kseq.h>
 KSEQ_INIT(gzFile, gzread);
 
 using namespace sdsl;

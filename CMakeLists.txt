@@ -77,6 +77,22 @@ else()
     message("divsufsort64: " ${DSS64})
 endif()
 
+## Add klib
+FetchContent_Declare(
+  klib
+  GIT_REPOSITORY https://github.com/attractivechaos/klib
+)
+
+FetchContent_GetProperties(klib)
+if(NOT klib_POPULATED)
+  FetchContent_Populate(klib)
+  
+  # add_subdirectory(${klib_SOURCE_DIR} ${klib_BINARY_DIR} EXCLUDE_FROM_ALL)
+  add_library(klib INTERFACE)
+
+  target_include_directories(klib INTERFACE ${klib_SOURCE_DIR})
+endif()
+
 
 
 
@@ -115,12 +131,14 @@ TARGET_LINK_LIBRARIES(ri-buildfasta sdsl)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort)
 TARGET_LINK_LIBRARIES(ri-buildfasta divsufsort64)
 TARGET_LINK_LIBRARIES(ri-buildfasta z)
+TARGET_LINK_LIBRARIES(ri-buildfasta klib)
 
 add_executable(ri-align ri-align.cpp)
 TARGET_LINK_LIBRARIES(ri-align sdsl)
 TARGET_LINK_LIBRARIES(ri-align divsufsort)
 TARGET_LINK_LIBRARIES(ri-align divsufsort64)
 TARGET_LINK_LIBRARIES(ri-align z)
+TARGET_LINK_LIBRARIES(ri-align klib)
 
 
 install(TARGETS ri-align DESTINATION bin)
