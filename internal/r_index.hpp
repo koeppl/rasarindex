@@ -623,7 +623,7 @@ protected:
         F = vector<ulint>(256,0);
         uchar c;
         ulint i = 0;
-        while (ifs >> c) {
+        while ((c = ifs.get()) != EOF) {
             if (c>TERMINATOR) F[c]++;
             else {
                 F[TERMINATOR]++;

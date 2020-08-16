@@ -100,10 +100,10 @@ public:
         string run_heads_s;
         // uchar last_c = input[0];
         uchar last_c, c;
-        ifs >> last_c;
+        last_c = ifs.get();
         last_c = last_c>TERMINATOR ? last_c : TERMINATOR; // 0->1 :D
         n = 1;
-        while(ifs >> c) {
+        while((c = ifs.get()) != EOF) {
             c = c>TERMINATOR ? c : TERMINATOR; // 0->1 :D
             if(c != last_c){
                 run_heads_s.push_back(last_c);
