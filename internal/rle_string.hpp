@@ -99,7 +99,7 @@ public:
         vector<bool> runs_bv;
         string run_heads_s;
         // uchar last_c = input[0];
-        uchar last_c, c;
+        int last_c, c;
         last_c = ifs.get();
         last_c = last_c>TERMINATOR ? last_c : TERMINATOR; // 0->1 :D
         n = 1;

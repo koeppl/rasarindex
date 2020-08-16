@@ -621,7 +621,7 @@ protected:
         ifs.clear();
         ifs.seekg(0);
         F = vector<ulint>(256,0);
-        uchar c;
+        int c;
         ulint i = 0;
         while ((c = ifs.get()) != EOF) {
             if (c>TERMINATOR) F[c]++;
