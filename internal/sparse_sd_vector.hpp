@@ -53,6 +53,25 @@ public:
 	}
 
 	/*
+	 * constructor. build bitvector given the onset as a vector of size_t and its length
+	 */
+	sparse_sd_vector(vector<size_t> &onset, size_t n){
+
+		if(n==0) return;
+
+		u = n;
+
+		sd_vector_builder builder(n, onset.size());
+		for (auto idx : onset)
+			builder.set(idx);
+
+		sdv = sd_vector<>(builder);
+		rank1 = sd_vector<>::rank_1_type(&sdv);
+		select1 = sd_vector<>::select_1_type(&sdv);
+
+	}
+
+	/*
 	 * constructor. build bitvector given a bit_vector
 	 */
 	sparse_sd_vector(bit_vector &bv){
