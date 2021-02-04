@@ -53,6 +53,28 @@ public:
 	}
 
 	/*
+	 * constructor. build bitvector given the onset
+	 */
+	sparse_hyb_vector(vector<size_t> &onset, size_t n){
+
+		if(n==0) return;
+
+		u = n;
+
+		bit_vector bv(n);
+
+		size_t j = 0;
+
+		for(uint64_t i=0;i<n;++i)
+			bv[i] = (j < onset.size() && onset[j] == i) ? (j++,1) : 0;
+
+		sdv = hyb_vector<>(bv);
+		rank1 = hyb_vector<>::rank_1_type(&sdv);
+		select1 = hyb_vector<>::select_1_type(&sdv);
+
+	}
+
+	/*
 	 * constructor. build bitvector given a bit_vector
 	 */
 	sparse_hyb_vector(bit_vector &bv){

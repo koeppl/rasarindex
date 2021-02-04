@@ -43,6 +43,21 @@ public:
 		rank1 = bit_vector::rank_1_type(&bv);
 		select1 = bit_vector::select_1_type(&bv);
 
+	/*
+	 * constructor. build bitvector given the onset
+	 */
+	succinct_bit_vector(vector<size_t> &onset, size_t n){
+
+		bv = bit_vector(n);
+
+		size_t j = 0;	
+
+		for(uint64_t i=0;i<n;++i)
+			bv[i] = (j < onset.size() && onset[j] == i) ? (j++,1) : 0;
+
+		rank1 = bit_vector::rank_1_type(&bv);
+		select1 = bit_vector::select_1_type(&bv);
+
 	}
 
 	succinct_bit_vector & operator= (const succinct_bit_vector & other) {
