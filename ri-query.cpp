@@ -12,8 +12,6 @@
 using namespace ri;
 using namespace std;
 
-bool hyb = false;
-string bwt;
 rle_string rle_bwt;
 std::vector<ulint> esa;
 
@@ -50,7 +48,7 @@ vector<ulint>& get_sa(string fname, ulint n, vector<ulint> &sa) {
 }
 
 // generates however many samples we are looking to query.
-void generate_samples(std::set<ulint> &samples, ulint amount, r_index<> idx) {
+void generate_samples(std::set<ulint> &samples, ulint amount, r_index<>& idx) {
   ulint min = 1;
   ulint max = idx.number_of_runs() - 1;
 
@@ -66,7 +64,7 @@ void generate_samples(std::set<ulint> &samples, ulint amount, r_index<> idx) {
 }
 
 // queries a particular SA[n].
-ulint query_n(r_index<> idx, string sa_filename, uint sa_n) {
+ulint query_n(r_index<>& idx, const string& sa_filename, uint sa_n) {
   ulint r = idx.number_of_runs();
   ulint j;
   ulint run;
@@ -85,7 +83,7 @@ ulint query_n(r_index<> idx, string sa_filename, uint sa_n) {
 }
 
 // queries every generated sample.
-void query_random(r_index<> idx, string sa_filename, int n_samples) {
+void query_random(r_index<>& idx, const string& sa_filename, int n_samples) {
   std::set<ulint> query_samples;
   generate_samples(query_samples, n_samples, idx);
 
@@ -124,7 +122,7 @@ void query_random(r_index<> idx, string sa_filename, int n_samples) {
 }
 
 // queries the entire r-index.
-void query_all(r_index<> idx, string sa_name) {
+void query_all(r_index<>& idx, string sa_name) {
   string bwt = idx.get_bwt();
   rle_string rle_bwt = rle_string(bwt);
   ulint n = rle_bwt.size();

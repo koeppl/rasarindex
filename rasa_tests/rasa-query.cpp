@@ -52,10 +52,7 @@ vector<ulint>& get_sa(std::string fname, ulint n, vector<ulint> &sa) {
 
 ulint query_n(r_index<> &idx, std::vector<ulint> &ssa, ulint sa_n) {
   ulint query_val = 0;
-  ulint n = rle_bwt.size();
   ulint r = idx.number_of_runs();
-  ulint j;
-  ulint run;
   r = esa.size();
 
   query_val = idx.query_csa(sa_n, ssa);
@@ -63,7 +60,7 @@ ulint query_n(r_index<> &idx, std::vector<ulint> &ssa, ulint sa_n) {
   return query_val;
 }
 
-void run(r_index<> idx, std::vector<ulint> &ssa, ulint num_samples) {\
+void run(r_index<>& idx, std::vector<ulint> &ssa, ulint num_samples) {\
   string string_sample;
   ulint ulint_sample;
   ulint query_result;

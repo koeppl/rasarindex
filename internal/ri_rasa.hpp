@@ -69,7 +69,7 @@ public:
 
   //! Build the csa/rads to be used with Phi^-1.
   /*!
-    \param unsorted_ssa Non-sorted start samples.
+    \param unsorted_ssa Non-sorted start samples. -> sorted in SA order
     \param ssa Sorted start samples.
     \param esa Non-sorted end samples.
     \param pred Predecessor bit vector. Used to calculate successors and predecessors.
@@ -77,7 +77,7 @@ public:
   void build_rads_phi_inv(std::vector<std::pair<ulint, ulint>> &unsorted_ssa, std::vector<std::pair<ulint, ulint>> &ssa, std::vector<ulint> &esa, sparse_bv_type &pred) {
     assert(ssa.size() == esa.size());
     std::vector<ulint> esa_sorted = esa;
-    sa_map.reserve(esa.size());
+    sa_map.reserve(esa.size()); //! TODO: not needed!
     bounds.resize(esa.size());
     sa_graph.resize(esa.size());
 
@@ -172,8 +172,8 @@ public:
         }
 
         sa_graph[sa_index] = curr_pred; // sample -> curr_pred
-        bounds[phi_x_inv[esa_sorted[j]]].first = esa_sorted[j] - ssa[i - 1].first; // lower_bound
-        bounds[phi_x_inv[esa_sorted[j]]].second = successor - unsorted_ssa[sa_index].first; // upper_bound
+        bounds[phi_x_inv[esa_sorted[j]]].first = esa_sorted[j] - ssa[i - 1].first; // lower_bound -> cost, sorted in SA order
+        bounds[phi_x_inv[esa_sorted[j]]].second = successor - unsorted_ssa[sa_index].first; // upper_bound -> limit
         j += 1;
       }
       else {
@@ -311,7 +311,7 @@ public:
         std::tuple<ulint, ulint, ulint> sa_prime_d_cost = trees[std::get<1>(tree_info)].query(std::get<2>(tree_info), cost, d); // tuple containing new sample run, distance travelled, and cost accumulated
         result = ssa[std::get<0>(sa_prime_d_cost)] + std::get<2>(sa_prime_d_cost); // sa_j is being set as the new sample
         sa_j = result;
-        run = pred_to_run[pred.predecessor_rank_circular(sa_j)];
+        run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; //TODO: useless?
         d = d - std::get<1>(sa_prime_d_cost); // this is the distance left over.
       }
       else {
@@ -319,7 +319,7 @@ public:
         ulint delta = sa_prime < sa_j ? sa_j - sa_prime : sa_j + 1; // distance between sample and its predecessor.
         ulint prev_sample = sa[pred_to_run[sa_jr] - 1]; // use samples_last (sa) to find the previous sample.
         sa_j = (prev_sample + delta) % bwt.size(); // get the next sample using delta and prev_sample.
-        run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; // run of new sample.
+        run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; // run of new sample. // TODO: useless?
         d -= 1;
       }
     }

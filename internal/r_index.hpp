@@ -385,7 +385,7 @@ public:
     /*
      * get number of runs in the BWT (terminator character included)
      */
-    ulint number_of_runs(){
+    ulint number_of_runs() const {
         return bwt.number_of_runs();
     }
 

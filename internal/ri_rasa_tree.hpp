@@ -136,7 +136,7 @@ public:
 
       // if we are on the right branch of nodes do not climb anymore
       // we also check if the sample we want is in the current interval
-      if((distance_diff <= 0) || (__builtin_ctzl(~node_pos) == (current_height + 1))) {
+      if((distance_diff <= 0) || (__builtin_ctzl(~node_pos) == (current_height + 1))) { // find lowest ancestor for which we are in the left subtree. All ancestors between do not give us more information.
         descend(start_pos, node_pos, cost, d, current_height);
         ulint distance = calculate_d(start_pos, node_pos);
         ulint leaf_sample_index = calculate_d(left_most_i, node_pos);

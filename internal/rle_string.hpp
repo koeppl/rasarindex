@@ -286,7 +286,7 @@ public:
         return runs_per_letter[c].gapAt(run_heads.rank(i,c));
     }
 
-    ulint number_of_runs(){return R;}
+    ulint number_of_runs() const {return R;}
     /* serialize the structure to the ostream
      * \param out     the ostream
      */
