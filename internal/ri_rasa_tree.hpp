@@ -1,8 +1,8 @@
 #ifndef R_INDEX_R_A_TREE_
 #define R_INDEX_R_A_TREE_
 
-#include <definitions.hpp>
-#include <r_index.hpp>
+#include "definitions.hpp"
+#include "r_index.hpp"
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 
@@ -100,28 +100,20 @@ public:
 
   //! Query function.
   /*!
-    \param leaf_pos Leaf node to begin traversal.
+    \param node_pos Leaf node to begin traversal.
+    \param cost Cost that we will carry and add to as we climb.
     \param d Distance that we would ideally travel.
   */
-  std::tuple<ulint, ulint, ulint> query(ulint leaf_pos, uint cost, uint d) {
+  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d) {
+    //! Climbing traversal function. Climb until we cannot and then begin descending.
     // begin climbing the tree and only collect when we go to a sibling.
     // when you go to a parent do not collect the cost, that is if the parent has the same left most node.
     // if youre moving to a subtree where the leftmost node is not the same then we have to collect the money.
-    return (climb(leaf_pos, cost, d));
-  }
-
-  //! Climbing traversal function. Climb until we cannot and then begin descending.
-  /*!
-    \param node_pos Node to start climbing from.
-    \param cost Cost that we will carry and add to as we climb.
-    \param d Distance we need to travel.
-  */
-  std::tuple<ulint, ulint, ulint> climb(ulint node_pos, uint &cost, uint d) {
+   
     ulint current_height = height;
     ulint start_pos = node_pos;
     ulint prev_pos = node_pos;
-    int max_d_travelled = 0;
-    int last_bit = 0;
+    ulint max_d_travelled = 0;
 
     // we can enter at either the height or height - 1
     if(node_pos < left_most_i) {
@@ -131,12 +123,11 @@ public:
     // climb up while the upper_bounds let us / climb up at least once if we are still at the start node
     ulint current_leftmost_node = (node_pos << (height - current_height));
     while(((node_pos != 1) && (tree[node_pos].second > 0) && (cost < tree[node_pos].second)) || (start_pos == node_pos)) {
-      int distance_diff = (int) d - max_d_travelled;
-      last_bit = (node_pos & 1);
+      const auto last_bit = (node_pos & 1);
 
       // if we are on the right branch of nodes do not climb anymore
       // we also check if the sample we want is in the current interval
-      if((distance_diff <= 0) || (__builtin_ctzl(~node_pos) == (current_height + 1))) { // find lowest ancestor for which we are in the left subtree. All ancestors between do not give us more information.
+      if((d <= max_d_travelled) || (static_cast<ulint>(__builtin_ctzl(~node_pos)) == (current_height + 1))) { // find lowest ancestor for which we are in the left subtree. All ancestors between do not give us more information.
         descend(start_pos, node_pos, cost, d, current_height);
         ulint distance = calculate_d(start_pos, node_pos);
         ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
@@ -144,7 +135,7 @@ public:
       }
 
       // check if when we shift up we get to the root of the left subtree
-      // meaning were on the right most branch of the left subtree
+      // meaning we're on the rightmost branch of the left subtree
       // this means we can skip forward to the right subtree
       prev_pos = node_pos;
       if(node_pos>>(__builtin_ctzl(~node_pos)) == 2) {
@@ -168,7 +159,7 @@ public:
             node_pos = (node_pos >> 1) + 1;
           }
           else {
-            break; // get out cause youre going to make an illegal jump
+            break; // get out cause you're going to make an illegal jump
           }
         }
         else {
@@ -184,15 +175,14 @@ public:
         current_leftmost_node = (node_pos << (height - current_height));
       }
 
-      ulint max_node_pos = ((node_pos << (height - current_height)) + ((1 << (height - current_height)) - 1)); // furthest right node we can reach from current position
-      ulint max_d = calculate_d(start_pos, max_node_pos); // (node_pos gets shifted by the distance to the leaves) + (1 shifted that many times left - 1)
-      max_d_travelled = (int) max_d;
+      const ulint max_node_pos = ((node_pos << (height - current_height)) + ((1 << (height - current_height)) - 1)); // furthest right node we can reach from current position
+      max_d_travelled = calculate_d(start_pos, max_node_pos); // (node_pos gets shifted by the distance to the leaves) + (1 shifted that many times left - 1)
     }
 
     // if we climbed up from a right node, we might encounter a node that denies us,
     // and the nodes below that might also deny us, therefore we shouldn't collect.
     // this descends until we have found a node that lets us pass and we collect that.
-    last_bit = (prev_pos & 1);
+    const auto last_bit = (prev_pos & 1);
     if(last_bit == 1) {
       while(!leaf_node_bv[node_pos]) {
         if(!(tree[node_pos].second > 0) || !(cost < tree[node_pos].second)) { // this means we keep getting denied
@@ -231,14 +221,13 @@ public:
     ulint prev_pos = node_pos;
 
     while((node_pos < leaf_node_bv.size()) && !leaf_node_bv[node_pos]) { // while we are in the bounds of the tree and not at a leaf node
-      int min_d_travelled;
-      int last_bit = (node_pos & 1);
+      const auto last_bit = (node_pos & 1);
       prev_pos = node_pos;
       if(last_bit == 0) { // left node descent
         if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right sibling
           ulint min_node = ((node_pos + 1) << (height - current_height));
-          min_d_travelled = (int) calculate_d(start_pos, min_node);
-          if(((int) d - min_d_travelled) < 0) {
+          const auto min_d_travelled = calculate_d(start_pos, min_node);
+          if(d < min_d_travelled) {
             // this means we would go too far when going to right sibling
             // go to right child instead
             node_pos = node_pos << 1;
@@ -261,9 +250,8 @@ public:
       else { // right node
         if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right child
           ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
-          min_d_travelled = (int) calculate_d(start_pos, min_node);
-
-          if(((int) d - min_d_travelled) < 0) {
+          const auto min_d_travelled = calculate_d(start_pos, min_node);
+          if(d < min_d_travelled) {
             // right node doesn't have sample. go back to left child
             node_pos -= 1;
             cost -= tree[node_pos].first;
@@ -282,26 +270,12 @@ public:
       }
     }
 
-    // ulint distance = calculate_d(start_pos, node_pos); // calculate the distance from start to end
-    // ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
-    // if((leaf_sample_index == (leaf_samples.size() - 1)) && (distance != 1)) { // this means were leaving off on the last sample of the tree
-    //   node_pos -= 1;
-    //   cost -= tree[node_pos].first;
-    //   if(!leaf_node_bv[node_pos]) { // if this is not a leaf node then go to its right child
-    //     node_pos = (node_pos << 1) + 1;
-    //     cost += tree[node_pos - 1].first; // add the cost of our left sibling
-    //     current_height += 1;
-    //   }
-    //
-    //   descend(start_pos, node_pos, cost, d, current_height);
-    // }
-
     // check min_d_travelled before descending to the next node
     // if its < 0 then that means we have moved past the interval our sample is contained in.
     // if this is the case go to our left sibling
     ulint min_node = (node_pos << (height - current_height));
-    int min_d_travelled = (int) calculate_d(start_pos, min_node);
-    if(((int) d - min_d_travelled) < 0) {
+    const ulint min_d_travelled = calculate_d(start_pos, min_node);
+    if(d < min_d_travelled) {
       node_pos -= 1;
       cost -= tree[node_pos].first;
       descend(start_pos, node_pos, cost, d, current_height); // descend again just in case there is tree left to be traversed
@@ -315,36 +289,26 @@ public:
   */
   ulint calculate_d(ulint start_pos, ulint end_pos) {
     ulint d = 0;
+    d += leaf_node_bv.rank(end_pos);
+    d -= leaf_node_bv.rank(start_pos);
 
     if(start_pos >= left_most_i) { // starting from bottom layer
+      d -= leaf_node_bv.rank((start_pos >> 1));
       if(end_pos >= left_most_i) { // going to bottom layer bot->bot
-        d += leaf_node_bv.rank(end_pos);
-        d -= leaf_node_bv.rank(start_pos);
-        d -= leaf_node_bv.rank((start_pos >> 1));
         d += leaf_node_bv.rank((end_pos >> 1));
       }
       else { // going to top layer bot->top
-        d += leaf_node_bv.rank(end_pos);
-        d -= leaf_node_bv.rank(start_pos);
-        d -= leaf_node_bv.rank((start_pos >> 1));
         d += leaf_node_bv.rank((end_pos << 1));
       }
-    }
-    else { // starting from top layer
+    } else { // starting from top layer
+      d -= leaf_node_bv.rank((start_pos << 1));
       if(end_pos >= left_most_i) {// going to bottom layer top->bot
-        d += leaf_node_bv.rank(end_pos);
-        d -= leaf_node_bv.rank(start_pos);
-        d -= leaf_node_bv.rank((start_pos << 1));
         d += leaf_node_bv.rank((end_pos >> 1));
       }
       else { // going to top layer top->top
-        d += leaf_node_bv.rank(end_pos);
-        d -= leaf_node_bv.rank(start_pos);
-        d -= leaf_node_bv.rank((start_pos << 1));
         d += leaf_node_bv.rank((end_pos << 1));
       }
     }
-
     return d;
   }
 

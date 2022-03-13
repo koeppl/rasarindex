@@ -12,6 +12,7 @@ project (s-rlbwt)
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/internal)
+include_directories(${PROJECT_SOURCE_DIR}/randSAbenchbase/include)
 # add_subdirectory(${PROJECT_SOURCE_DIR}/Big-BWT)
 
 set(CMAKE_INSTALL_INCLUDEDIR "include") # This is an hack because include(GUIInstallDirs) doesn't work
@@ -21,13 +22,24 @@ FetchContent_Declare(
   bigbwt
   GIT_REPOSITORY https://github.com/alshai/Big-BWT.git
   )
+FetchContent_Declare(
+  bitspan
+  GIT_REPOSITORY https://github.com/tudocomp/bit_span
+  )
 
 FetchContent_GetProperties(bigbwt)
 if(NOT bigbwt_POPULATED)
   FetchContent_Populate(bigbwt)
   add_subdirectory(${bigbwt_SOURCE_DIR} ${bigbwt_BINARY_DIR})
-
   endif()
+
+FetchContent_GetProperties(bitspan)
+if(NOT bitspan_POPULATED)
+  FetchContent_Populate(bitspan)
+  add_subdirectory(${bitspan_SOURCE_DIR} ${bitspan_BINARY_DIR})
+  endif()
+
+include_directories(${bitspan_SOURCE_DIR}/include)
 
 # check for SDSL
 find_library(SDSL_LIB sdsl)
@@ -103,7 +115,7 @@ set(CMAKE_CXX_FLAGS "--std=c++17")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -g -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -Ofast -fstrict-aliasing -march=native -DNDEBUG")
 # set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -fstrict-aliasing -march=native -DNDEBUG -DLF_STATS")  # Uncomment this line in order to enable LF_STATS.
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -ggdb -Ofast -fstrict-aliasing -march=native")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -ggdb -pg -Ofast -fstrict-aliasing -march=native")
 
 
 add_executable(ri-build EXCLUDE_FROM_ALL ri-build.cpp)
@@ -149,7 +161,7 @@ TARGET_LINK_LIBRARIES(ri-rads-test divsufsort64)
 TARGET_LINK_LIBRARIES(ri-rads-test z)
 TARGET_LINK_LIBRARIES(ri-rads-test klib)
 
-add_executable(ri-query ri-query.cpp)
+add_executable(ri-query ./rasa_tests/ri-query.cpp)
 TARGET_LINK_LIBRARIES(ri-query sdsl)
 TARGET_LINK_LIBRARIES(ri-query divsufsort)
 TARGET_LINK_LIBRARIES(ri-query divsufsort64)

@@ -9,36 +9,15 @@
 #include "../internal/rle_string.hpp"
 #include "../internal/r_index.hpp"
 #include "../internal/utils.hpp"
+#include "benchmark.hpp"
+#include "rasa_common.hpp"
+
+// #define DEBUG 1
 
 using namespace ri;
 using namespace std;
 
-bool hyb = false;
-string bwt;
-rle_string rle_bwt;
-vector<ulint> esa;
-
-void help() {
-  cout << "rasa-query: random access to the csa data structure." << endl;
-  cout << "Usage:       ri-query <index> <end samples> <# of queries>" << endl;
-  cout << "   <index>   index file (with extension .ri)";
-  cout << "\n   <start samples>   .ssa file";
-  cout << "\n   (optional) <-u | -n>   query up to the 'n'-th sample starting at zero, or query the 'n'-th sample";
-  cout << "\n   (optional) <n>   n for the previous argument";
-  cout << "\n   eg. rasa-query xyz.fasta.ri xyz.fasta.ssa -u 29000000 (queries up to the 29000000th sample)" << endl;
-  exit(0);
-}
-
-void parse_args(char** argv, int argc, int &ptr) {
-  assert(ptr < argc);
-  string s(argv[ptr]);
-  ptr++;
-  if(argc < 3) {
-    help();
-  }
-}
-
-vector<ulint>& get_sa(std::string fname, ulint n, vector<ulint> &sa) {
+vector<ulint>& load_csa(std::string fname, ulint n, vector<ulint> &sa) {
     sa.clear();
     std::ifstream ifs(fname);
     uint64_t x = 0;
@@ -50,61 +29,58 @@ vector<ulint>& get_sa(std::string fname, ulint n, vector<ulint> &sa) {
     return sa;
 }
 
-ulint query_n(r_index<> &idx, std::vector<ulint> &ssa, ulint sa_n) {
-  ulint query_val = 0;
-  ulint r = idx.number_of_runs();
-  r = esa.size();
-
-  query_val = idx.query_csa(sa_n, ssa);
-
-  return query_val;
-}
-
-void run(r_index<>& idx, std::vector<ulint> &ssa, ulint num_samples) {\
-  string string_sample;
-  ulint ulint_sample;
-  ulint query_result;
-  ifstream in_samples("../rasa_tests/chr19_1_samples.txt");
-  for(size_t i = 0; i <= num_samples; i++) {
-    getline(in_samples, string_sample);
-    ulint_sample = strtoul(string_sample.c_str(), NULL, 0);
-    query_result = query_n(idx, ssa, i);
-
-    // assert(query_result == ulint_sample);
-
-    if(query_result != ulint_sample) {
-      cout << "index: " << i << endl;
-      cout << "correct sample: " << ulint_sample << endl;
-      cout << "retrieved sample: " << query_result << endl;
-    }
-  }
-}
-
 int main(int argc, char** argv) {
-  int ptr = 1;
-  if(argc < 3) {
-    help();
+  if(argc < 1){
+    fprintf(stderr, "Usage: %s basename\n", argv[0]);
+    return 1;
   }
-
-  while(ptr < (argc - 1)) {
-    parse_args(argv, argc, ptr);
-  }
-
-  string idx_name = argv[1];
-  string ssa_filename = argv[2];
+  const string basename = argv[1];
+  const string ri_filename = basename + ".ri";
+  const string ssa_filename = basename + ".ssa";
+  assert_file_exists(ri_filename.c_str());
+  assert_file_exists(ssa_filename.c_str());
 
   r_index<> idx;
-  std::vector<ulint> ssa;
-  idx.load_from_file(idx_name.c_str());
-  bwt = idx.get_bwt();
-  rle_bwt = rle_string(bwt);
-  get_sa(ssa_filename, rle_bwt.size(), ssa);
-  cout << "index, bwt, and rle loaded." << endl;
+  idx.load_from_file(ri_filename.c_str());
+  // string bwt = idx.get_bwt();
+  // rle_string rle_bwt = rle_string(bwt);
+  const auto text_length = idx.bwt.size();
 
-  if(strcmp(argv[3], "-u") == 0) {
-    run(idx, ssa, atoi(argv[4]));
-  }
-  else if(strcmp(argv[3], "-n") == 0) {
-    query_n(idx, ssa, stoul(argv[4]));
-  }
+  std::vector<ulint> ssa;
+  load_csa(ssa_filename, text_length, ssa);
+  std::cerr << "index, bwt, and rle loaded." << endl;
+#ifdef DEBUG
+  batch_query("rasa-index", basename, [&](uint64_t query_index) -> uint64_t { 
+      my::Timer timer;
+      timer.start();
+      const auto comp_val = access_sa(idx, query_index);
+      const double comp_time = timer.restart();
+      const auto my_val = idx.query_csa(query_index, ssa);
+      const double my_time = timer.restart();
+      if(my_time < comp_time) {
+        printf("SA[%lu]: my_time: %f comp_time : %f diff: %f\n", query_index, my_time, comp_time, my_time - comp_time);
+      }
+      CHECK_EQ(comp_val, my_val);
+      return (my_val + 1) % text_length;
+      }, false);
+#else
+  batch_query("rasa-index", basename, [&](uint64_t query_index) -> uint64_t { 
+      return (idx.query_csa(query_index, ssa) + 1) % text_length;
+      }, false);
+#endif
+  return 0;
+
+  // ifstream answerfile(answer_filename);
+  //
+  // ifstream queryfile(query_filename);
+  // while(true) {
+  //   uint64_t answer_value;
+  //   answerfile.read(reinterpret_cast<char*>(&answer_value), sizeof(decltype(answer_value)));
+  //   uint64_t query_index;
+  //   queryfile.read(reinterpret_cast<char*>(&query_index), sizeof(decltype(query_index)));
+  //   if(!queryfile.good()) { break; }
+  //    const uint64_t answer = idx.query_csa(query_index, ssa);
+  //    DCHECK_EQ(answer, query_index);
+  //    fwrite(&answer, sizeof(decltype(answer)), 1, stdout);
+  // }
 }

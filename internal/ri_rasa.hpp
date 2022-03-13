@@ -27,7 +27,7 @@ public:
   rads(std::vector<std::pair<ulint, ulint>> &unsorted_ssa, std::vector<std::pair<ulint, ulint>> &ssa, std::vector<ulint> &esa, sparse_bv_type &pred) {
     build_rads_phi(unsorted_ssa, ssa, esa, pred);
     cout << "Searching paths ..." << endl;
-    find_cycles(ssa);
+    find_cycles();
     cout << "\nDebug info: " << endl;
     print_debug_info();
   }
@@ -103,7 +103,7 @@ public:
         assert(node <= ssa[i].first);
         ulint successor_rank = pred.predecessor_rank_circular(phi_x_inv[ssa[i].first]) + 1;
         ulint successor = pred.select(successor_rank);
-        ulint predecessor = pred.select(successor_rank - 1);
+        // ulint predecessor = pred.select(successor_rank - 1);
         sa_graph[phi_x_inv[ssa[i].first]] = node; // this has to be improved, the hash is unnecessary
         bounds[phi_x_inv[ssa[i].first]].first = ssa[i].first - esa_sorted[j - 1]; // start_sample - pred(start_sample)
         bounds[phi_x_inv[ssa[i].first]].second = successor - esa[phi_x_inv[ssa[i].first]]; // successor of sample - pred of sample
@@ -207,7 +207,7 @@ public:
   /*!
     \param ssa Start samples.
   */
-  void find_cycles(std::vector<std::pair<ulint, ulint>> &ssa) {
+  void find_cycles() {
     std::vector<uint> indegrees(sa_graph.size(), 0); // indegrees of the nodes
     std::vector<bool> visited(sa_graph.size(), false); // visited nodes so far
     auto temp_trees_bv = vector<bool>(sa_graph.size(), false);
@@ -221,37 +221,37 @@ public:
 
     // for all nodes with indegree 0, we check if they contain a cycle.
     for(size_t i = 1; i < sa_graph.size(); i++) {
-      if(indegrees[i] == 0) {
-        std::vector<ulint> current_path;
-        int u = i;
-        int v = sa_graph[u];
-        visited[u] = true;
-        current_path.push_back(u);
+      if(indegrees[i] != 0) { continue; }  //@ consider only starting nodes having no in-degree
+      std::vector<ulint> current_path;
+      ulint v = sa_graph[i];
+      visited[i] = true;
+      current_path.push_back(i);
 
-        while(visited[v] == false && v != 0) {
-          current_path.push_back(v);
-          visited[v] = true;
-          v = sa_graph[v];
-        }
+      while(visited[v] == false && v != 0) {
+        current_path.push_back(v);
+        visited[v] = true;
+        v = sa_graph[v];
+      }
 
-        // scan the current path and see if v is in it
-        bool is_cycle = false;
-        for (size_t i = 0; !is_cycle && i < current_path.size(); i++) {
-          if(v == current_path[i])
-            is_cycle = true;
-        }
+      // scan the current path and see if v is in it
+      // bool is_cycle = false;
+      // for(size_t path_it = 0; !is_cycle && path_it < current_path.size(); path_it++) {
+      //   if(v == current_path[path_it]) {
+      //     is_cycle = true;
+      //   }
+      // }
 
-        // min threshold to remove really small cycles that arent worthwhile.
+      // min threshold to remove really small cycles that arent worthwhile.
 
-        // we can implement a min. path length threshold to include paths that
-        // may not be cycles but can still be used to traverse samples.
-        if(is_cycle) { // if the path is a cycle we construct a tree
-          rads_tree branch = rads_tree(current_path, bounds, tree_counter, tree_pointers);
-          tree_counter += 1;
-          trees.push_back(branch);
-          for(size_t i = 0; i < current_path.size()-1; i++) { // -1 because the the last leaf node in our cycle is useless for queries
-            temp_trees_bv[current_path[i]] = true; // set the nodes that are in the cycle to true in our bitvector
-          }
+      // we can implement a min. path length threshold to include paths that
+      // may not be cycles but can still be used to traverse samples.
+      // if(is_cycle) { // if the path is a cycle we construct a tree
+      if(current_path.size() >= 16) { // if the path has a length of at least 16 nodes, put it into a tree
+        rads_tree branch = rads_tree<sparse_bv_type, rle_string_t>(current_path, bounds, tree_counter, tree_pointers);
+        tree_counter += 1;
+        trees.push_back(branch);
+        for(size_t path_it = 0; path_it < current_path.size()-1; path_it++) { // -1 because the the last leaf node in our cycle is useless for queries
+          temp_trees_bv[current_path[path_it]] = true; // set the nodes that are in the cycle to true in our bitvector
         }
       }
     }
@@ -274,12 +274,10 @@ public:
   ulint query(ulint sa_i, rle_string_t &bwt, int_vector<> &pred_to_run, sparse_bv_type &pred, int_vector<> &sa, std::vector<ulint> &ssa) { // std::vector<ulint> &sa
     // if the sample we want is in a tree, use it, otherwise use phi
     // return SA value at position i (sa_i)
-    ulint run = bwt.run_of_position(sa_i);
-    ulint run_l = bwt.run_range(run).second;
-    ulint sa_j = sa[run]; // sa value at position 'run'
-    helper_query(sa_j, run_l-sa_i, run, bwt, pred_to_run, pred, sa, ssa); // after helper_query, sa_j will be the sample we want.
-    return sa_j;
-  }
+    const ulint initial_run = bwt.run_of_position(sa_i);
+    const ulint run_l = bwt.run_range(initial_run).second; //@ the succeeding position we sampled
+    ulint sa_j = sa[initial_run]; //@ = SA[initial_run], which we will update to SA[sa_i]
+    ulint d = run_l-sa_i; //@ the distance of the closest sampled value up to the position `sa_i`
 
   //! Helper function that finds whether a sample is in a tree, therefore using it. If it is not in a tree it iterates Phi.
   /*!
@@ -292,7 +290,7 @@ public:
     \param sa Suffix array bitvector, in this case samples_last.
     \param ssa Unsorted start samples retrieved from the .ssa file post-construction.
   */
-  void helper_query(ulint &sa_j, ulint d, ulint run, rle_string_t &bwt, int_vector<> &pred_to_run, sparse_bv_type &pred, int_vector<> &sa, std::vector<ulint> &ssa) {
+  // void helper_query(ulint &sa_j, ulint d, ulint run, rle_string_t &bwt, int_vector<> &pred_to_run, sparse_bv_type &pred, int_vector<> &sa, std::vector<ulint> &ssa) {
     ulint sa_jr;
     ulint sa_prime;
     ulint cost;
@@ -305,13 +303,13 @@ public:
 
       // check if pred is in a cycle
       // if on the last iteration (d == 1) just iterate phi
-      if(in_cycle(pred_to_run[sa_jr]) && d != 1) {
-        run = pred_to_run[sa_jr];
-        std::tuple<ulint, ulint, uint> tree_info = tree_pointers[trees_bv.rank(run)]; // get the tree that the sample belongs to.
+      if(trees_bv[pred_to_run[sa_jr]] && d != 1) {
+        const auto current_run = pred_to_run[sa_jr];
+        std::tuple<ulint, ulint, uint> tree_info = tree_pointers[trees_bv.rank(current_run)]; // get the tree that the sample belongs to.
         std::tuple<ulint, ulint, ulint> sa_prime_d_cost = trees[std::get<1>(tree_info)].query(std::get<2>(tree_info), cost, d); // tuple containing new sample run, distance travelled, and cost accumulated
         result = ssa[std::get<0>(sa_prime_d_cost)] + std::get<2>(sa_prime_d_cost); // sa_j is being set as the new sample
         sa_j = result;
-        run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; //TODO: useless?
+        // run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; //TODO: useless?
         d = d - std::get<1>(sa_prime_d_cost); // this is the distance left over.
       }
       else {
@@ -319,22 +317,11 @@ public:
         ulint delta = sa_prime < sa_j ? sa_j - sa_prime : sa_j + 1; // distance between sample and its predecessor.
         ulint prev_sample = sa[pred_to_run[sa_jr] - 1]; // use samples_last (sa) to find the previous sample.
         sa_j = (prev_sample + delta) % bwt.size(); // get the next sample using delta and prev_sample.
-        run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; // run of new sample. // TODO: useless?
+        // run = pred_to_run[pred.predecessor_rank_circular(sa_j)]; // run of new sample. // TODO: useless?
         d -= 1;
       }
     }
-  }
-
-  //! Checks if the provided run is in a tree.
-  /*!
-    \param sa_run Run to look for in trees_bv.
-  */
-  bool in_cycle(ulint sa_run) {
-    if(trees_bv[sa_run]) {
-      return true;
-    }
-
-    return false;
+  return sa_j;
   }
 
   void print_debug_info() {

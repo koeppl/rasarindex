@@ -722,6 +722,7 @@ protected:
 
     static const uchar TERMINATOR = 1;
     bool sais = true;
+public:
     /*
      * sparse RLBWT: r (log sigma + (1+epsilon) * log (n/r)) (1+o(1)) bits
      */
