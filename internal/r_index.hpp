@@ -141,8 +141,8 @@ public:
         cout << "done. " << endl<<endl;
 
         cout << "(3/3) Building phi function ..." << flush;
-        std::vector<std::pair<ulint, ulint>> unsorted_samples_first_vec = samples_first_vec; // we need an unsorted ssa temporarily
-        build_phi(samples_first_vec, samples_last_vec); //
+        std::vector<std::pair<ulint, ulint>> unsorted_samples_first_vec = samples_first_vec; //@ we need an ssa sorted in SA-order
+        build_phi(samples_first_vec, samples_last_vec); //@ sort samples_first_vec in text order
         cout << " done. " << endl << endl;
 
         cout << "(3.5/3) Building rads ..." << endl;

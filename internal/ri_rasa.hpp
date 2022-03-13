@@ -13,7 +13,7 @@
 using namespace sdsl;
 
 // temp notes for me:
-// - pred_to_run is basically sa_map so that means it can be removed
+// - pred_to_run is basically inverse_ssa so that means it can be removed
 // - we need to do < for checking the costs because of the fact that we are counting them along the way.
 
 namespace ri {
@@ -24,6 +24,7 @@ namespace ri {
 class rads {
 public:
   rads(){};
+  //@ unsorted = sorted in SA order
   rads(std::vector<std::pair<ulint, ulint>> &unsorted_ssa, std::vector<std::pair<ulint, ulint>> &ssa, std::vector<ulint> &esa, sparse_bv_type &pred) {
     build_rads_phi(unsorted_ssa, ssa, esa, pred);
     cout << "Searching paths ..." << endl;
@@ -33,7 +34,6 @@ public:
   }
 
   rads(const rads &other_rads) {
-    this->sa_map = other_rads.sa_map;
     this->phi_x_inv = other_rads.phi_x_inv;
     this->trees = other_rads.trees;
     this->tree_pointers = other_rads.tree_pointers;
@@ -43,8 +43,7 @@ public:
   }
 
   rads(rads &&other_rads)
-  : sa_map(move(other_rads.sa_map))
-  , phi_x_inv(move(other_rads.phi_x_inv))
+  : phi_x_inv(move(other_rads.phi_x_inv))
   , trees(move(other_rads.trees))
   , tree_pointers(move(other_rads.tree_pointers))
   , bounds(move(other_rads.bounds))
@@ -57,7 +56,6 @@ public:
   }
 
   rads& operator=(rads &&other_rads) {
-    swap(sa_map, other_rads.sa_map);
     swap(phi_x_inv, other_rads.phi_x_inv);
     swap(trees, other_rads.trees);
     swap(tree_pointers, other_rads.tree_pointers);
@@ -67,64 +65,64 @@ public:
     return *this;
   }
 
-  //! Build the csa/rads to be used with Phi^-1.
-  /*!
-    \param unsorted_ssa Non-sorted start samples. -> sorted in SA order
-    \param ssa Sorted start samples.
-    \param esa Non-sorted end samples.
-    \param pred Predecessor bit vector. Used to calculate successors and predecessors.
-  */
-  void build_rads_phi_inv(std::vector<std::pair<ulint, ulint>> &unsorted_ssa, std::vector<std::pair<ulint, ulint>> &ssa, std::vector<ulint> &esa, sparse_bv_type &pred) {
-    assert(ssa.size() == esa.size());
-    std::vector<ulint> esa_sorted = esa;
-    sa_map.reserve(esa.size()); //! TODO: not needed!
-    bounds.resize(esa.size());
-    sa_graph.resize(esa.size());
-
-    // initialization of map variables
-    for(ulint i = 0; i < esa.size(); i++) {
-      sa_map[esa[i]] = i; // sa_map can be removed I think but for now lets leave it
-      if(i < ssa.size() - 1) {
-        phi_x_inv[ssa[i+1].first] = i;
-      }
-    }
-
-    // esa needs to be sorted for everything past this.
-    std::sort(ssa.begin(), ssa.end()); // this wont be needed once sa_graph is sorted.
-    std::sort(esa_sorted.begin(), esa_sorted.end());
-
-    ulint i = 0; // ssa iterator
-    ulint j = 0; // esa iterator
-    ulint node = sa_map[esa_sorted.back()]; // init node as biggest value in pred ds because its circular.
-
-    // computing the predecessor values using a merge-sort like combine phase
-    while((i < ssa.size()) && (j < esa.size())) {
-      if(ssa[i].first < esa_sorted[j]) {
-        assert(node <= ssa[i].first);
-        ulint successor_rank = pred.predecessor_rank_circular(phi_x_inv[ssa[i].first]) + 1;
-        ulint successor = pred.select(successor_rank);
-        // ulint predecessor = pred.select(successor_rank - 1);
-        sa_graph[phi_x_inv[ssa[i].first]] = node; // this has to be improved, the hash is unnecessary
-        bounds[phi_x_inv[ssa[i].first]].first = ssa[i].first - esa_sorted[j - 1]; // start_sample - pred(start_sample)
-        bounds[phi_x_inv[ssa[i].first]].second = successor - esa[phi_x_inv[ssa[i].first]]; // successor of sample - pred of sample
-        i += 1;
-      }
-      else {
-        node = sa_map[esa_sorted[j]];
-        j += 1;
-      }
-    }
-
-    while(i < ssa.size()) {
-      ulint successor_rank = pred.predecessor_rank_circular(esa[phi_x_inv[ssa[i].first]]) + 1;
-      ulint successor = pred.select(successor_rank);
-      ulint predecessor = pred.select(successor_rank - 1);
-      sa_graph[phi_x_inv[ssa[i].first]] = node;
-      bounds[phi_x_inv[ssa[i].first]].first = ssa[i].first - esa_sorted[j - 1];
-      bounds[phi_x_inv[ssa[i].first]].second = successor - predecessor;
-      i += 1;
-    }
-  }
+  // //! Build the csa/rads to be used with Phi^-1.
+  // /*!
+  //   \param unsorted_ssa Non-sorted start samples. -> sorted in SA order
+  //   \param ssa Sorted start samples.
+  //   \param esa Non-sorted end samples.
+  //   \param pred Predecessor bit vector. Used to calculate successors and predecessors.
+  // */
+  // void build_rads_phi_inv(std::vector<std::pair<ulint, ulint>> &unsorted_ssa, std::vector<std::pair<ulint, ulint>> &ssa, std::vector<ulint> &esa, sparse_bv_type &pred) {
+  //   assert(ssa.size() == esa.size());
+  //   std::vector<ulint> esa_sorted = esa;
+  //   inverse_ssa.reserve(esa.size()); //! TODO: not needed!
+  //   bounds.resize(esa.size());
+  //   sa_graph.resize(esa.size());
+  //
+  //   // initialization of map variables
+  //   for(ulint i = 0; i < esa.size(); i++) {
+  //     inverse_ssa[esa[i]] = i; // inverse_ssa can be removed I think but for now lets leave it
+  //     if(i < ssa.size() - 1) {
+  //       phi_x_inv[ssa[i+1].first] = i;
+  //     }
+  //   }
+  //
+  //   // esa needs to be sorted for everything past this.
+  //   std::sort(ssa.begin(), ssa.end()); // this wont be needed once sa_graph is sorted.
+  //   std::sort(esa_sorted.begin(), esa_sorted.end());
+  //
+  //   ulint i = 0; // ssa iterator
+  //   ulint j = 0; // esa iterator
+  //   ulint node = inverse_ssa[esa_sorted.back()]; // init node as biggest value in pred ds because its circular.
+  //
+  //   // computing the predecessor values using a merge-sort like combine phase
+  //   while((i < ssa.size()) && (j < esa.size())) {
+  //     if(ssa[i].first < esa_sorted[j]) {
+  //       assert(node <= ssa[i].first);
+  //       ulint successor_rank = pred.predecessor_rank_circular(phi_x_inv[ssa[i].first]) + 1;
+  //       ulint successor = pred.select(successor_rank);
+  //       // ulint predecessor = pred.select(successor_rank - 1);
+  //       sa_graph[phi_x_inv[ssa[i].first]] = node; // this has to be improved, the hash is unnecessary
+  //       bounds[phi_x_inv[ssa[i].first]].first = ssa[i].first - esa_sorted[j - 1]; // start_sample - pred(start_sample)
+  //       bounds[phi_x_inv[ssa[i].first]].second = successor - esa[phi_x_inv[ssa[i].first]]; // successor of sample - pred of sample
+  //       i += 1;
+  //     }
+  //     else {
+  //       node = inverse_ssa[esa_sorted[j]];
+  //       j += 1;
+  //     }
+  //   }
+  //
+  //   while(i < ssa.size()) {
+  //     ulint successor_rank = pred.predecessor_rank_circular(esa[phi_x_inv[ssa[i].first]]) + 1;
+  //     ulint successor = pred.select(successor_rank);
+  //     ulint predecessor = pred.select(successor_rank - 1);
+  //     sa_graph[phi_x_inv[ssa[i].first]] = node;
+  //     bounds[phi_x_inv[ssa[i].first]].first = ssa[i].first - esa_sorted[j - 1];
+  //     bounds[phi_x_inv[ssa[i].first]].second = successor - predecessor;
+  //     i += 1;
+  //   }
+  // }
 
   //! Build the csa/rads to be used with Phi.
   /*!
@@ -137,13 +135,15 @@ public:
     cout << "Building rads for phi ..." << endl;
     assert(ssa.size() == esa.size());
     std::vector<ulint> esa_sorted = esa; // we sort a temp array to not mess with esa
-    sa_map.reserve(esa.size());
+
+    std::unordered_map<ulint, ulint> inverse_ssa; // this is just pred_to_run but pred_to_run wasn't working?
+    inverse_ssa.reserve(esa.size());
     sa_graph.resize(esa.size());
     bounds.resize(esa.size());
 
     cout << "Building SA map ..." << endl;
     for(ulint i = 0; i < esa.size(); i++) {
-      sa_map[unsorted_ssa[i].first] = i; // sa_map just assigns run values to the ssa samples
+      inverse_ssa[unsorted_ssa[i].first] = i; // inverse_ssa just assigns run values to the ssa samples
       if(i > 0) {
         phi_x_inv[esa[i - 1]] = i; // array to tell you which samples phi takes you to
       }
@@ -151,7 +151,7 @@ public:
 
     ulint i = 0;
     ulint j = 0;
-    ulint curr_pred = sa_map[ssa.back().first]; // assign pred to the last start sample
+    ulint curr_pred = inverse_ssa[ssa.back().first]; // assign pred to the last start sample
     std::sort(esa_sorted.begin(), esa_sorted.end()); // sort our temporary esa array
 
     // calculating predecessors and setting them as edges
@@ -177,7 +177,7 @@ public:
         j += 1;
       }
       else {
-        curr_pred = sa_map[ssa[i].first];
+        curr_pred = inverse_ssa[ssa[i].first];
         i += 1;
       }
     }
@@ -276,7 +276,7 @@ public:
     // return SA value at position i (sa_i)
     const ulint initial_run = bwt.run_of_position(sa_i);
     const ulint run_l = bwt.run_range(initial_run).second; //@ the succeeding position we sampled
-    ulint sa_j = sa[initial_run]; //@ = SA[initial_run], which we will update to SA[sa_i]
+    ulint sa_j = sa[initial_run]+1; //@ = SA[initial_run], which we will update to SA[sa_i]
     ulint d = run_l-sa_i; //@ the distance of the closest sampled value up to the position `sa_i`
 
   //! Helper function that finds whether a sample is in a tree, therefore using it. If it is not in a tree it iterates Phi.
@@ -396,7 +396,6 @@ public:
   }
 
 protected:
-  std::unordered_map<ulint, ulint> sa_map; // this is just pred_to_run but pred_to_run wasn't working?
   std::unordered_map<ulint, ulint> phi_x_inv; // map of phi or phi_inverse values
 
   // explain what tree pointers actually means better

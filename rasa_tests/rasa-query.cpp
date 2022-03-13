@@ -12,7 +12,7 @@
 #include "benchmark.hpp"
 #include "rasa_common.hpp"
 
-// #define DEBUG 1
+#define DEBUG 1
 
 using namespace ri;
 using namespace std;
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
       }, false);
 #else
   batch_query("rasa-index", basename, [&](uint64_t query_index) -> uint64_t { 
-      return (idx.query_csa(query_index, ssa) + 1) % text_length;
+      return idx.query_csa(query_index, ssa);
       }, false);
 #endif
   return 0;

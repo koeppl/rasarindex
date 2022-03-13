@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
 
   std::cerr << "index, bwt, and rle loaded." << endl;
   batch_query("r-index", basename, [&](uint64_t query_index) -> uint64_t { 
-  return (access_sa(idx, query_index) + 1) % text_length;
+  return access_sa(idx, query_index);
       }
-      , false);
+      , true);
 }
