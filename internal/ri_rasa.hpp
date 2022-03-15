@@ -24,7 +24,7 @@ namespace ri {
 //! Builds the graph of the SA. Finds cycles within the SA. Then builds and stores the trees built on them.
 class rads {
 
-static constexpr size_t MIN_PATH_SIZE = 10000; //@ lower bound on the number of nodes a rads-tree indexes
+static constexpr size_t MIN_PATH_SIZE = 4; //@ lower bound on the number of nodes a rads-tree indexes
 
 public:
   rads(){};

@@ -1,12 +1,10 @@
-#ifndef R_INDEX_R_A_TREE_
-#define R_INDEX_R_A_TREE_
+#ifndef CSATREE_CLASSIC_HPP
+#define CSATREE_CLASSIC_HPP
 
 #include "definitions.hpp"
 #include "r_index.hpp"
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
-#include "csatree_classic.hpp"
-#include "dcheck.hpp"
 
 using namespace sdsl;
 
@@ -15,87 +13,63 @@ namespace ri {
            class rle_string_t = rle_string_sd>
 
 //! Tree data structure that stores the samples contained within a cycle. Performs queries.
-class rads_tree {
-  CSATree<sparse_bv_type, rle_string_t> m_classic_tree;
+class CSATree {
 public:
-
   using cost_type = ulint;
   using limit_type = long long int;
 
   std::vector<std::pair<cost_type, limit_type>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
-  std::vector<ulint> leaf_samples; //@ stores the SA sample values of the leaves represented by run indices
+  std::vector<ulint> leaf_samples; // actual sa sample values represented by run index
   sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node
   uint left_most_i; // index at which the left most leaf is stored || sdsl::serialize
   size_t height; // height of the tree starting at 0 || sdsl::serialize
 
-  rads_tree(){};
-  //! rads_tree constructor that recursively builds a balanced binary interval tree using the samples provided.
+  CSATree(){};
+  //! CSATree constructor that recursively builds a balanced binary interval tree using the samples provided.
   /*!
     \param cycle Path of sample nodes on which to be built a tree.
     \param bounds Calculated bounds used for lower and upper bound calculation.
     \param tree_num Number of tree.
     \param tree_pointers Vector of tree pointers that is added to every time a leaf is set.
   */
-  rads_tree(const std::vector<ulint> &cycle, const std::vector<std::pair<ulint, ulint>> &bounds, const uint tree_num, std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers) 
-  {
-    {
-      std::vector<std::tuple<ulint, ulint, uint>> _tree_pointers;
-      m_classic_tree = decltype(m_classic_tree)(cycle, bounds, tree_num, _tree_pointers);
-    }
-    const size_t n = cycle.size(); // path size
-    height = ceil(log2(n)); // height of the tree //TODO: can be removed
-    //TODO: make std::move(cycle)
+  CSATree(const std::vector<ulint> &cycle, const std::vector<std::pair<ulint, ulint>> &bounds, const uint tree_num, std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers) {
+    size_t n = cycle.size(); // path size
+    height = ceil(log2(n)); // height of the tree
     leaf_samples = cycle; // store the samples in the cycle
+    tree = decltype(tree)(1ULL<<(height + 1), std::make_pair(-1, 0)); // tree size initialization, default the costs to -1
+    auto temp_leaf_bv = vector<bool>(tree.size(), false);
 
-    const size_t number_of_perfect_leaves = 1ULL<<height;
-    DCHECK_LE(n, number_of_perfect_leaves);
-    const size_t round_off = number_of_perfect_leaves - n; //@ number of excess nodes from the next power of two
-    const size_t number_of_perfect_nodes = (1ULL<<(height + 1))-1;
-
-    tree = decltype(tree)(number_of_perfect_nodes - round_off, std::make_pair(0, -1)); // tree size initialization, default the costs to -1
-    auto temp_leaf_bv = vector<bool>(number_of_perfect_nodes, false);
-
-    constructor_helper(bounds, 1, 0, number_of_perfect_leaves - 1, tree_num, tree_pointers, temp_leaf_bv);
+    constructor_helper(bounds, 1, 0, n - 1, tree_num, tree_pointers, temp_leaf_bv);
     leaf_node_bv = sparse_bv_type(temp_leaf_bv);
-    left_most_i = (number_of_perfect_nodes>>1) + 1;
-
-    for(size_t i = 0; i < left_most_i; ++i) {
-      DCHECK_EQ(leaf_node_bv[i], false);
-    }
-    for(size_t i = left_most_i; i < tree.size(); ++i) {
-      DCHECK_EQ(leaf_node_bv[i], true);
-    }
+    left_most_i = (tree.size() >> 1);
   }
 
-  rads_tree(const rads_tree &other_tree) {
+  CSATree(const CSATree &other_tree) {
     this->tree = other_tree.tree;
     this->leaf_samples = other_tree.leaf_samples;
     this->leaf_node_bv = other_tree.leaf_node_bv;
     this->left_most_i = other_tree.left_most_i;
     this->height = other_tree.height;
-    this->m_classic_tree = other_tree.m_classic_tree;
   }
 
-  rads_tree(rads_tree &&other_tree) noexcept
+  CSATree(CSATree &&other_tree) noexcept
   : tree(move(other_tree.tree))
   , leaf_samples(move(other_tree.leaf_samples))
   , leaf_node_bv(move(other_tree.leaf_node_bv))
   , left_most_i(move(other_tree.left_most_i))
   , height(move(other_tree.height))
-  , m_classic_tree(move(other_tree.m_classic_tree))
   {}
 
-  rads_tree& operator=(const rads_tree &other_tree) {
-    return *this = rads_tree(other_tree);
+  CSATree& operator=(const CSATree &other_tree) {
+    return *this = CSATree(other_tree);
   }
 
-  rads_tree& operator=(rads_tree &&other_tree) {
+  CSATree& operator=(CSATree &&other_tree) {
     swap(tree, other_tree.tree);
     swap(leaf_samples, other_tree.leaf_samples);
     swap(leaf_node_bv, other_tree.leaf_node_bv);
     swap(left_most_i, other_tree.left_most_i);
     swap(height, other_tree.height);
-    swap(m_classic_tree, other_tree.m_classic_tree);
     return *this;
   }
 
@@ -109,27 +83,17 @@ public:
     \param tree_pointers Pointers that are added to for eveyr leaf we set.
     \param leaf_bv Bitvector to know which nodes are leaf nodes.
   */
-  void constructor_helper(//TODO: can be sped up by slimming #arguments, and maybe use stack recursion
-      const std::vector<std::pair<ulint, ulint>> &bounds, 
-      const size_t node, 
-      const size_t begin, 
-      const size_t end, 
-      const uint tree_num, 
-      std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers, 
-      std::vector<bool> &leaf_bv) {
+  void constructor_helper(const std::vector<std::pair<ulint, ulint>> &bounds, const size_t node, const size_t begin, const size_t end, const uint tree_num, std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers, std::vector<bool> &leaf_bv) {
+    const size_t mid = (begin + end)/2;
     if(begin >= end) { // condition which creates the leaf nodes.
-      if(node < tree.size()) {
-        tree[node].first = bounds[leaf_samples[begin]].first; // edge cost
-        tree[node].second = bounds[leaf_samples[begin]].second; // edge threshold
-        if(begin != leaf_samples.size()-1) { // if it is not the last sample in the tree, add a tree pointer to be used when querying
-          tree_pointers.push_back(std::make_tuple(leaf_samples[begin], tree_num, node));
-        }
-        leaf_bv[node] = true;
+      tree[node].first = bounds[leaf_samples[begin]].first; // edge cost
+      tree[node].second = bounds[leaf_samples[begin]].second; // edge threshold
+      if(begin != leaf_samples.size()-1) { // if it is not the last sample in the tree, add a tree pointer to be used when querying
+        tree_pointers.push_back(std::make_tuple(leaf_samples[begin], tree_num, node));
       }
+      leaf_bv[node] = true;
       return;
     }
-    const size_t mid = (begin + end)/2;
-    DCHECK_EQ(mid-begin, end-mid-1);
 
     constructor_helper(bounds, 2*node, begin, mid, tree_num, tree_pointers, leaf_bv); // construct left child
     constructor_helper(bounds, 2*node+1, mid+1, end, tree_num, tree_pointers, leaf_bv); // construct right child
@@ -259,13 +223,12 @@ public:
   void descend(ulint start_pos, ulint &node_pos, uint &cost, uint d, ulint current_height) {
     ulint prev_pos = node_pos;
 
-    while((node_pos < tree.size()) && !leaf_node_bv[node_pos]) { // while we are in the bounds of the tree and not at a leaf node
+    while((node_pos < leaf_node_bv.size()) && !leaf_node_bv[node_pos]) { // while we are in the bounds of the tree and not at a leaf node
       const auto last_bit = (node_pos & 1);
       prev_pos = node_pos;
       if(last_bit == 0) { // left node descent
         if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right sibling
-          DCHECK_LE(current_height, height);
-          const ulint min_node = ((node_pos + 1) << (height - current_height));
+          ulint min_node = ((node_pos + 1) << (height - current_height));
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
             // this means we would go too far when going to right sibling
@@ -289,8 +252,7 @@ public:
       }
       else { // right node
         if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right child
-          DCHECK_LE(current_height, height);
-          const ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
+          ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
             // right node doesn't have sample. go back to left child
@@ -314,8 +276,7 @@ public:
     // check min_d_travelled before descending to the next node
     // if its < 0 then that means we have moved past the interval our sample is contained in.
     // if this is the case go to our left sibling
-    DCHECK_LE(current_height, height);
-    const ulint min_node = (node_pos << (height - current_height));
+    ulint min_node = (node_pos << (height - current_height));
     const ulint min_d_travelled = calculate_d(start_pos, min_node);
     if(d < min_d_travelled) {
       node_pos -= 1;
@@ -403,7 +364,6 @@ public:
     w_bytes += leaf_node_bv.serialize(out);
     w_bytes += sdsl::serialize(left_most_i, out);
     w_bytes += sdsl::serialize(height, out);
-    w_bytes += m_classic_tree.serialize(out);
 
     return w_bytes;
   }
@@ -424,9 +384,8 @@ public:
 
     in.read((char*)&left_most_i, sizeof(left_most_i));
     in.read((char*)&height, sizeof(height));
-    m_classic_tree.load(in);
   }
 };
 }
 
-#endif
+#endif /* CSATREE_CLASSIC_HPP */

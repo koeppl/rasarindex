@@ -84,7 +84,7 @@ std::tuple<uint64_t, uint64_t> bwt_scan_ssa(std::string bwt_fname, std::vector<s
     samples_last.assign(nruns, 0);
     k = 0; // k is bwt position
     j = n-1; // j is sa sample
-    uint8_t c;
+    // uint8_t c;
     // find suffix array samples using LF mapping and induction
     // S[LF(k)] = S[k]-1
     for (i = 0; i < n; ++i) {

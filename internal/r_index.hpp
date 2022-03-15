@@ -20,7 +20,7 @@
 #include "bwt_scan.hpp"
 #include <zlib.h>
 #include <kseq.h>
-KSEQ_INIT(gzFile, gzread);
+KSEQ_INIT(gzFile, gzread)
 
 using namespace sdsl;
 
