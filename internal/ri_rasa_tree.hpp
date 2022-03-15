@@ -15,16 +15,19 @@ namespace ri {
 //! Tree data structure that stores the samples contained within a cycle. Performs queries.
 class rads_tree {
 public:
-  std::vector<std::pair<long long int, long long int>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
+  using cost_type = ulint;
+  using limit_type = long long int;
+
+  std::vector<std::pair<cost_type, limit_type>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
   std::vector<ulint> leaf_samples; // actual sa sample values represented by run index
   sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node
   uint left_most_i; // index at which the left most leaf is stored || sdsl::serialize
-  ulint height; // height of the tree starting at 0 || sdsl::serialize
+  size_t height; // height of the tree starting at 0 || sdsl::serialize
 
   rads_tree(){};
   //! rads_tree constructor that recursively builds a balanced binary interval tree using the samples provided.
   /*!
-    \param cycle Cycle of samples to be built into a tree.
+    \param cycle Path of sample nodes on which to be built a tree.
     \param bounds Calculated bounds used for lower and upper bound calculation.
     \param tree_num Number of tree.
     \param tree_pointers Vector of tree pointers that is added to every time a leaf is set.
@@ -33,7 +36,7 @@ public:
     size_t n = cycle.size(); // path size
     height = ceil(log2(n)); // height of the tree
     leaf_samples = cycle; // store the samples in the cycle
-    tree = std::vector<std::pair<long long int, long long int>>((size_t)1<<(size_t)(height + 1), std::make_pair(-1, 0)); // tree size initialization, default the costs to -1
+    tree = decltype(tree)(1ULL<<(height + 1), std::make_pair(-1, 0)); // tree size initialization, default the costs to -1
     auto temp_leaf_bv = vector<bool>(tree.size(), false);
 
     constructor_helper(bounds, 1, 0, n - 1, tree_num, tree_pointers, temp_leaf_bv);
@@ -81,10 +84,10 @@ public:
     \param leaf_bv Bitvector to know which nodes are leaf nodes.
   */
   void constructor_helper(std::vector<std::pair<ulint, ulint>> &bounds, size_t node, size_t begin, size_t end, uint tree_num, std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers, std::vector<bool> &leaf_bv) {
-    size_t mid = (begin + end)/2;
+    const size_t mid = (begin + end)/2;
     if(begin >= end) { // condition which creates the leaf nodes.
-      tree[node].first = (long long int)bounds[leaf_samples[begin]].first; // edge cost
-      tree[node].second = (long long int)bounds[leaf_samples[begin]].second; // edge threshold
+      tree[node].first = bounds[leaf_samples[begin]].first; // edge cost
+      tree[node].second = bounds[leaf_samples[begin]].second; // edge threshold
       if(begin != leaf_samples.size()-1) { // if it is not the last sample in the tree, add a tree pointer to be used when querying
         tree_pointers.push_back(std::make_tuple(leaf_samples[begin], tree_num, node));
       }
@@ -95,7 +98,7 @@ public:
     constructor_helper(bounds, 2*node, begin, mid, tree_num, tree_pointers, leaf_bv); // construct left child
     constructor_helper(bounds, 2*node+1, mid+1, end, tree_num, tree_pointers, leaf_bv); // construct right child
     tree[node].first = tree[2*node].first + tree[2*node+1].first; // edge sum of left and right child
-    tree[node].second = std::min(tree[2*node].second, tree[2*node+1].second - tree[2*node].first); // edge threshold
+    tree[node].second = std::min<limit_type>(tree[2*node].second, tree[2*node+1].second - tree[2*node].first); // edge threshold
   }
 
   //! Query function.

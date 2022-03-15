@@ -12,6 +12,7 @@
 
 using namespace sdsl;
 
+
 // temp notes for me:
 // - pred_to_run is basically inverse_ssa so that means it can be removed
 // - we need to do < for checking the costs because of the fact that we are counting them along the way.
@@ -22,6 +23,9 @@ namespace ri {
 
 //! Builds the graph of the SA. Finds cycles within the SA. Then builds and stores the trees built on them.
 class rads {
+
+static constexpr size_t MIN_PATH_SIZE = 10000; //@ lower bound on the number of nodes a rads-tree indexes
+
 public:
   rads(){};
   //@ unsorted = sorted in SA order
@@ -246,7 +250,7 @@ public:
       // we can implement a min. path length threshold to include paths that
       // may not be cycles but can still be used to traverse samples.
       // if(is_cycle) { // if the path is a cycle we construct a tree
-      if(current_path.size() >= 16) { // if the path has a length of at least 16 nodes, put it into a tree
+      if(current_path.size() >= MIN_PATH_SIZE) { // if the path has a length of at least 16 nodes, put it into a tree
         rads_tree branch = rads_tree<sparse_bv_type, rle_string_t>(current_path, bounds, tree_counter, tree_pointers);
         tree_counter += 1;
         trees.push_back(branch);
