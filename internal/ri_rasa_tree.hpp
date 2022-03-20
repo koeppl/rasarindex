@@ -107,7 +107,7 @@ public:
     \param cost Cost that we will carry and add to as we climb.
     \param d Distance that we would ideally travel.
   */
-  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d) {
+  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d, uint c = -1) {
     //! Climbing traversal function. Climb until we cannot and then begin descending.
     // begin climbing the tree and only collect when we go to a sibling.
     // when you go to a parent do not collect the cost, that is if the parent has the same left most node.

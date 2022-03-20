@@ -159,7 +159,8 @@ public:
 
     // we can enter at either the height or height - 1
     if(node_pos < left_most_i) {
-      current_height -= 1;
+      DCHECK(false); // cannot happen!
+      // current_height -= 1;
     }
 
     // climb up while the upper_bounds let us / climb up at least once if we are still at the start node
