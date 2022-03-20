@@ -101,22 +101,24 @@ int main() {
   DCHECK_EQ(std::get<1>(sample_and_delta), 2);
   DCHECK_EQ(std::get<2>(sample_and_delta), 0);
 
-  sample_and_delta = trees[1].query(5, 0, 1);
+  const ulint query_node = rads_tree<>::VERSION == 0 ? 5 : trees[1].left_most_i+2;
+
+  sample_and_delta = trees[1].query(query_node, 0, 1);
   DCHECK_EQ(std::get<0>(sample_and_delta), 20);
   DCHECK_EQ(std::get<1>(sample_and_delta), 1);
   DCHECK_EQ(std::get<2>(sample_and_delta), 0);
 
-  sample_and_delta = trees[1].query(5, 0, 2);
+  sample_and_delta = trees[1].query(query_node, 0, 2);
   DCHECK_EQ(std::get<0>(sample_and_delta), 0);
   DCHECK_EQ(std::get<1>(sample_and_delta), 2);
   DCHECK_EQ(std::get<2>(sample_and_delta), 2);
 
-  sample_and_delta = trees[1].query(5, 0, 3);
+  sample_and_delta = trees[1].query(query_node, 0, 3);
   DCHECK_EQ(std::get<0>(sample_and_delta), 17);
   DCHECK_EQ(std::get<1>(sample_and_delta), 3);
   DCHECK_EQ(std::get<2>(sample_and_delta), 2);
 
-  sample_and_delta = trees[1].query(5, 0, 4);
+  sample_and_delta = trees[1].query(query_node, 0, 4);
   DCHECK_EQ(std::get<0>(sample_and_delta), 17);
   DCHECK_EQ(std::get<1>(sample_and_delta), 3);
   DCHECK_EQ(std::get<2>(sample_and_delta), 2);

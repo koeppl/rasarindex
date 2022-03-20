@@ -17,6 +17,7 @@ namespace ri {
 
 //! Tree data structure that stores the samples contained within a cycle. Performs queries.
 class rads_tree {
+  static constexpr size_t VERSION = 1;
 
   CSATree<sparse_bv_type, rle_string_t> m_classic_tree; //DEBUG
   std::vector<std::tuple<ulint, ulint, uint>> m_tree_pointers;//DEBUG
