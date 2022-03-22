@@ -26,7 +26,7 @@ public:
   using limit_type = long long int;
 
   Vector<std::pair<cost_type, limit_type>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
-  std::vector<ulint> leaf_samples; //@ stores the SA sample values of the leaves represented by run indices
+  Vector<ulint> leaf_samples; //@ stores the SA sample values of the leaves represented by run indices
   sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node
   uint left_most_i; // index at which the left most leaf is stored || sdsl::serialize
   size_t height; // height of the tree starting at 0 || sdsl::serialize
@@ -152,9 +152,9 @@ public:
    
     const auto initial_cost = cost;
     const auto initial_d = d;
+    const ulint start_pos = node_pos;
 
     ulint current_height = height;
-    ulint start_pos = node_pos;
     ulint prev_pos = node_pos;
     ulint max_d_travelled = 0;
 
@@ -250,6 +250,13 @@ public:
       descend(start_pos, node_pos, cost, d, current_height); // descend using new node_pos, cost, and d
     }
 
+    bool overshoot = false;
+    if(node_pos == tree.size()) {  // no overshooting
+      node_pos = tree.size()-1; 
+      cost -= tree[node_pos].first;
+      overshoot = true;
+    }
+
     ulint distance = calculate_d(start_pos, node_pos); // calculate the distance from start to end to know how far we travelled
     ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
     const auto my_ret = std::make_tuple(leaf_samples[leaf_sample_index], distance, cost); // return new sample and new distance
@@ -335,7 +342,8 @@ public:
           if(current_height == height) { break; }
           current_height += 1;
           node_pos = node_pos << 1;
-          DCHECK_LT(node_pos, tree.size());
+          // if(node_pos < tree.size()) { --node_pos; } // do not overshoot
+          // DCHECK_LT(node_pos, tree.size());
         }
       }
     }
@@ -344,6 +352,7 @@ public:
     // if its < 0 then that means we have moved past the interval our sample is contained in.
     // if this is the case go to our left sibling
     const ulint min_node = (node_pos << (height - current_height));
+    DCHECK_LE(start_pos, min_node);
     const ulint min_d_travelled = calculate_d(start_pos, min_node);
     if(d < min_d_travelled) {
       node_pos -= 1;
