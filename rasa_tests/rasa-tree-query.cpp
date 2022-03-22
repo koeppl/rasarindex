@@ -51,22 +51,23 @@ int main() {
   std::vector<ulint> tree_3 = {0, 1, 2, 3, 4, 5, 6, 7, 8}; // 9 samples to test the new rung of leaves that get made.
   std::vector<std::pair<ulint, ulint>> tree_3_bounds = {{0,1}, {0,1}, {0,1}, {0,1}, {0,1}, {0,1}, {0,1}, {0,1}, {0,1}};
 
+  constexpr size_t TREE_FOUR_SIZE = 18;
   std::vector<ulint> tree_4; // a lot of samples to push it.
   std::vector<std::pair<ulint, ulint>> tree_4_bounds;
-  for(size_t i = 0; i <= 123; i++) {
+  for(size_t i = 0; i <= TREE_FOUR_SIZE; i++) {
     tree_4.push_back(i);
     tree_4_bounds.push_back(std::make_pair(0,1));
   }
 
-  std::vector<ulint> tree_5 = {26, 13, 3, 11, 16, 20, 0, 17, 1, 2, 19, 24};
-  std::vector<std::pair<ulint, ulint>> tree_5_bounds = {{5,1}, {0,3}, {0,6}, {0,3}, {3,0}, {2,1}, {0,3}, {4,1}, {0,3}, {0,3}, {0,3}, {0,3}};
+  // std::vector<ulint> tree_5 = {26, 13, 3, 11, 16, 20, 0, 17, 1, 2, 19, 24};
+  // std::vector<std::pair<ulint, ulint>> tree_5_bounds = {{5,1}, {0,3}, {0,6}, {0,3}, {3,0}, {2,1}, {0,3}, {4,1}, {0,3}, {0,3}, {0,3}, {0,3}};
 
   trees.emplace_back(prepare_tree(tree_0, tree_0_bounds, 0, tree_pointers));
   trees.emplace_back(prepare_tree(tree_1, tree_1_bounds, 1, tree_pointers));
   trees.emplace_back(prepare_tree(tree_2, tree_2_bounds, 2, tree_pointers));
   trees.emplace_back(prepare_tree(tree_3, tree_3_bounds, 3, tree_pointers));
   trees.emplace_back(prepare_tree(tree_4, tree_4_bounds, 4, tree_pointers));
-  trees.emplace_back(prepare_tree(tree_5, tree_5_bounds, 5, tree_pointers));
+  // trees.emplace_back(prepare_tree(tree_5, tree_5_bounds, 5, tree_pointers));
 
   std::tuple<ulint, ulint, ulint> sample_and_delta;
   // retrieve every sample using the left most sample.
@@ -133,7 +134,7 @@ int main() {
     DCHECK_EQ(std::get<0>(sample_and_delta) , i);
   }
 
-  for(size_t i = 1; i <= 123; i++) {
+  for(size_t i = 1; i <= TREE_FOUR_SIZE; i++) {
     sample_and_delta = trees[4].query(trees[4].left_most_i, 0, i);
     DCHECK_EQ(std::get<0>(sample_and_delta) , i);
   }
@@ -141,17 +142,22 @@ int main() {
   // retrieve every sample from every possible leaf.
   for(size_t i = 0; i < trees[4].leaf_node_bv.size(); i++) {
     if(trees[4].leaf_node_bv[i] == 1) {
-      ulint node_distance = trees[4].calculate_d(trees[4].left_most_i, i);
-      ulint samples_left = 123 - node_distance;
+      const ulint node_distance = trees[4].calculate_d(trees[4].left_most_i, i);
+      const ulint samples_left = TREE_FOUR_SIZE - node_distance;
       for(size_t j = 1; j <= samples_left; j++) {
         sample_and_delta = trees[4].query(i, 0, j);
         DCHECK_EQ(std::get<0>(sample_and_delta) , (node_distance + j));
       }
+      // no overshooting
+      for(size_t j = samples_left+1; j < samples_left+10; j++) {
+        sample_and_delta = trees[4].query(i, 0, j);
+        DCHECK_EQ(std::get<0>(sample_and_delta), node_distance + samples_left);
+      }
     }
   }
 
-  sample_and_delta = trees[5].query(9, 0, 3);
-  DCHECK_EQ(std::get<0>(sample_and_delta) , 11);
+  // sample_and_delta = trees[5].query(9, 0, 3);
+  // DCHECK_EQ(std::get<0>(sample_and_delta) , 11);
 
   cout << "all good!" << endl;
 

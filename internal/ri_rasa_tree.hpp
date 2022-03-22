@@ -208,6 +208,7 @@ public:
         }
         else {
           node_pos = (node_pos >> 1) + 1;
+          DCHECK_LT(node_pos, tree.size());
         }
       }
 
@@ -244,7 +245,7 @@ public:
     }
     else {
       cost += tree[node_pos << 1].first; // add cost of node that denies us
-      node_pos = (node_pos << 1) + 1; // move node_pos to the right child of the current node // or should it be the left child of the node
+      node_pos = std::min((node_pos << 1) + 1, tree.size()-1); // move node_pos to the right child of the current node // or should it be the left child of the node
       current_height += 1;
       descend(start_pos, node_pos, cost, d, current_height); // descend using new node_pos, cost, and d
     }
@@ -281,37 +282,40 @@ public:
     DCHECK_LE(current_height, height);
     ulint prev_pos = node_pos;
 
-    while((node_pos < leaf_node_bv.size()) && !leaf_node_bv[node_pos]) { // while we are in the bounds of the tree and not at a leaf node
+    while(node_pos < tree.size()) { // while we are in the bounds of the tree and not at a leaf node
       const auto last_bit = (node_pos & 1);
       prev_pos = node_pos;
       if(last_bit == 0) { // left node descent
         if(node_pos < tree.size() && (tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right sibling
-          ulint min_node = ((node_pos + 1) << (height - current_height));
+          const ulint min_node = ((node_pos + 1) << (height - current_height));
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
             // this means we would go too far when going to right sibling
             // go to right child instead
+            if(current_height == height) { break; }
             node_pos = node_pos << 1;
             node_pos += 1;
+            DCHECK_LT(node_pos, tree.size());
             current_height += 1;
-            DCHECK_LE(current_height, height);
             cost += tree[node_pos - 1].first;
           }
           else {
             // go to right sibling
+            if(node_pos + 1 == tree.size()) { break; } // already at the last leaf
             node_pos += 1;
             cost += tree[prev_pos].first;
           }
         }
         else { // if not good then go to left child and check on next iteration
+          if(current_height == height) { break; }
           node_pos = node_pos << 1;
+          // DCHECK_LT(node_pos, tree.size());
           current_height += 1;
-          DCHECK_LE(current_height, height);
         }
       }
       else { // right node descend
         if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right child
-          ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
+          const ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
             // right node doesn't have sample. go back to left child
@@ -320,16 +324,18 @@ public:
             continue;
           }
 
+          if(current_height == height) { break; }
           current_height += 1;
-          DCHECK_LE(current_height, height);
           cost += tree[node_pos << 1].first;
           node_pos = (node_pos << 1) + 1;
+          DCHECK_LT(node_pos, tree.size());
         }
         else {
           // if not good then go to left child
+          if(current_height == height) { break; }
           current_height += 1;
-          DCHECK_LE(current_height, height);
           node_pos = node_pos << 1;
+          DCHECK_LT(node_pos, tree.size());
         }
       }
     }
@@ -337,7 +343,7 @@ public:
     // check min_d_travelled before descending to the next node
     // if its < 0 then that means we have moved past the interval our sample is contained in.
     // if this is the case go to our left sibling
-    ulint min_node = (node_pos << (height - current_height));
+    const ulint min_node = (node_pos << (height - current_height));
     const ulint min_d_travelled = calculate_d(start_pos, min_node);
     if(d < min_d_travelled) {
       node_pos -= 1;
