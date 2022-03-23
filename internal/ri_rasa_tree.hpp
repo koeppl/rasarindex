@@ -10,6 +10,8 @@
 #include "vector.hpp"
 
 using namespace sdsl;
+#define BISIMULATE_CSA_TREE 1
+#define WITH_LEAF_NODE_BV 1
 
 namespace ri {
   template<class sparse_bv_type = sparse_sd_vector,
@@ -18,8 +20,11 @@ namespace ri {
 //! Tree data structure that stores the samples contained within a cycle. Performs queries.
 class rads_tree {
 
+#ifdef BISIMULATE_CSA_TREE
   CSATree<sparse_bv_type, rle_string_t> m_classic_tree; //DEBUG
   std::vector<std::tuple<ulint, ulint, uint>> m_tree_pointers;//DEBUG
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
+
 public:
   static constexpr size_t VERSION = 1;
   using cost_type = ulint;
@@ -27,7 +32,9 @@ public:
 
   Vector<std::pair<cost_type, limit_type>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
   Vector<ulint> leaf_samples; //@ stores the SA sample values of the leaves represented by run indices
-  sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node
+#ifdef WITH_LEAF_NODE_BV 
+  sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node //TODO: can be removed!
+#endif//WITH_LEAF_NODE_BV
   uint left_most_i; // index at which the left most leaf is stored || sdsl::serialize
   size_t height; // height of the tree starting at 0 || sdsl::serialize
 
@@ -45,7 +52,9 @@ public:
     height = ceil(log2(n)); // height of the tree //TODO: can be removed
     //TODO: make std::move(cycle)
 
+#ifdef BISIMULATE_CSA_TREE
     m_classic_tree = decltype(m_classic_tree)(cycle, bounds, tree_num, m_tree_pointers);
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
     leaf_samples = cycle; // store the samples in the cycle
 
 
@@ -58,16 +67,18 @@ public:
     auto temp_leaf_bv = vector<bool>(number_of_perfect_nodes, false); //TODO
 
     constructor_helper(bounds, 1, 0, number_of_perfect_leaves - 1, tree_num, tree_pointers, temp_leaf_bv);
-    leaf_node_bv = sparse_bv_type(temp_leaf_bv);
 
     left_most_i = (number_of_perfect_nodes>>1);
 
+#ifdef WITH_LEAF_NODE_BV 
+    leaf_node_bv = sparse_bv_type(temp_leaf_bv);
     for(size_t i = 0; i < left_most_i; ++i) {
       DCHECK_EQ(leaf_node_bv[i], false);
     }
     for(size_t i = left_most_i; i < tree.size(); ++i) {
       DCHECK_EQ(leaf_node_bv[i], true);
     }
+#endif//WITH_LEAF_NODE_BV
   }
 
   rads_tree(const rads_tree &other_tree) {
@@ -76,18 +87,24 @@ public:
     this->leaf_node_bv = other_tree.leaf_node_bv;
     this->left_most_i = other_tree.left_most_i;
     this->height = other_tree.height;
+#ifdef BISIMULATE_CSA_TREE
     this->m_classic_tree = other_tree.m_classic_tree;
     this->m_tree_pointers = other_tree.m_tree_pointers;
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
   }
 
   rads_tree(rads_tree &&other_tree) noexcept
   : tree(move(other_tree.tree))
   , leaf_samples(move(other_tree.leaf_samples))
+#ifdef WITH_LEAF_NODE_BV 
   , leaf_node_bv(move(other_tree.leaf_node_bv))
+#endif//WITH_LEAF_NODE_BV
   , left_most_i(move(other_tree.left_most_i))
   , height(move(other_tree.height))
+#ifdef BISIMULATE_CSA_TREE
   , m_classic_tree(move(other_tree.m_classic_tree))
   , m_tree_pointers(move(other_tree.m_tree_pointers))
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
   {}
 
   rads_tree& operator=(const rads_tree &other_tree) {
@@ -97,11 +114,15 @@ public:
   rads_tree& operator=(rads_tree &&other_tree) {
     swap(tree, other_tree.tree);
     swap(leaf_samples, other_tree.leaf_samples);
+#ifdef WITH_LEAF_NODE_BV 
     swap(leaf_node_bv, other_tree.leaf_node_bv);
+#endif//WITH_LEAF_NODE_BV
     swap(left_most_i, other_tree.left_most_i);
     swap(height, other_tree.height);
+#ifdef BISIMULATE_CSA_TREE
     swap(m_classic_tree, other_tree.m_classic_tree);
     swap(m_tree_pointers, other_tree.m_tree_pointers);
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
     return *this;
   }
 
@@ -144,14 +165,24 @@ public:
     \param cost Cost that we will carry and add to as we climb.
     \param d Distance that we would ideally travel.
   */
-  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d, const ulint leaf_sample = -1) {
+  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d, 
+#ifdef BISIMULATE_CSA_TREE
+      const ulint leaf_sample = -1
+#else
+      const ulint = -1
+#endif
+      ) {
     //! Climbing traversal function. Climb until we cannot and then begin descending.
     // begin climbing the tree and only collect when we go to a sibling.
     // when you go to a parent do not collect the cost, that is if the parent has the same left most node.
     // if youre moving to a subtree where the leftmost node is not the same then we have to collect the money.
    
-    const auto initial_cost = cost;
-    const auto initial_d = d;
+  DCHECK(false);
+
+// #ifdef BISIMULATE_CSA_TREE
+//     const auto initial_cost = cost;
+//     const auto initial_d = d;
+// #endif//BISIMULATE_CSA_TREE_CSA_TREE
     const ulint start_pos = node_pos;
 
     ulint current_height = height;
@@ -187,6 +218,11 @@ public:
         current_height = 1;
         cost += tree[prev_pos].first;
         descend(start_pos, node_pos, cost, d, current_height);
+        if(node_pos >= tree.size()) {
+          node_pos--;
+          cost -= tree[node_pos].first;
+          DCHECK_LT(node_pos, tree.size());
+        }
         ulint distance = calculate_d(start_pos, node_pos);
         ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
         return (std::make_tuple(leaf_samples[leaf_sample_index], distance, cost)); // return new sample and new distance
@@ -229,8 +265,9 @@ public:
     // this descends until we have found a node that lets us pass and we collect that.
     const auto last_bit = (prev_pos & 1);
     if(last_bit == 1) {
-      while(!leaf_node_bv[node_pos]) {
-        if(!(tree[node_pos].second > 0) || !(cost < tree[node_pos].second)) { // this means we keep getting denied
+      while(node_pos < left_most_i) { //@ while node is an internal node
+      // while(node_pos < leaf_node_bv.size() && !leaf_node_bv[node_pos]) {
+        if(node_pos >= tree.size() || !(tree[node_pos].second > 0) || !(cost < tree[node_pos].second)) { // this means we keep getting denied
           node_pos = (node_pos << 1);
           current_height += 1;
         }
@@ -251,7 +288,7 @@ public:
     }
 
     bool overshoot = false;
-    if(node_pos == tree.size()) {  // no overshooting
+    if(node_pos >= tree.size()) {  // no overshooting
       node_pos = tree.size()-1; 
       cost -= tree[node_pos].first;
       overshoot = true;
@@ -261,6 +298,8 @@ public:
     ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
     const auto my_ret = std::make_tuple(leaf_samples[leaf_sample_index], distance, cost); // return new sample and new distance
 
+
+#ifdef BISIMULATE_CSA_TREE
     // if(leaf_sample != -1ULL) {
     //   bool found = false;
     //   for(size_t i = 0; i < m_tree_pointers.size(); ++i) {
@@ -275,6 +314,7 @@ public:
     //   }
     //   CHECK_EQ(found, true);
     // }
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
     return my_ret;
   }
 
@@ -361,12 +401,8 @@ public:
     }
   }
 
-  //! Calculates the distance (number of leaf nodes between the two) between two node positions.
-  /*!
-    \param start_pos Left node to count from.
-    \param end_pos Right node to count until.
-  */
-  ulint calculate_d(ulint start_pos, ulint end_pos) {
+#ifdef WITH_LEAF_NODE_BV 
+  ulint calculate_d_debug(ulint start_pos, ulint end_pos) {
     ulint d = 0;
     d += leaf_node_bv.rank(end_pos);
     d -= leaf_node_bv.rank(start_pos);
@@ -388,9 +424,23 @@ public:
         d += leaf_node_bv.rank((end_pos << 1));
       }
     }
-    DCHECK_LE(start_pos, end_pos); //TODO
-    DCHECK_EQ(std::min(end_pos,tree.size())-start_pos, d); //TODO
     return d;
+  }
+#endif//WITH_LEAF_NODE_BV
+
+  //! Calculates the distance (number of leaf nodes between the two) between two node positions.
+  /*!
+    \param start_pos Left node to count from.
+    \param end_pos Right node to count until.
+  */
+  ulint calculate_d(ulint start_pos, ulint end_pos) {
+    DCHECK_LE(start_pos, end_pos);
+    const auto ret = std::min(end_pos,tree.size())-start_pos;
+
+#ifdef WITH_LEAF_NODE_BV
+    DCHECK_EQ(ret, calculate_d_debug(start_pos, end_pos)); //TODO
+#endif//WITH_LEAF_NODE_BV
+    return std::min(end_pos,tree.size())-start_pos;
   }
 
   void print_tree_info() {
@@ -398,7 +448,9 @@ public:
     cout << "# of samples: " << leaf_samples.size() << endl;
     print_bounds();
     print_samples();
+#ifdef WITH_LEAF_NODE_BV 
     print_nodebv();
+#endif//WITH_LEAF_NODE_BV
     cout << "left_most_i: " << left_most_i << endl;
     cout << "height: " << height << endl;
   }
@@ -419,6 +471,7 @@ public:
     cout << endl;
   }
 
+#ifdef WITH_LEAF_NODE_BV 
   void print_nodebv() {
     cout << "node bv: ";
     for(size_t i = 0; i < leaf_node_bv.size(); i++) {
@@ -426,6 +479,7 @@ public:
     }
     cout << endl;
   }
+#endif//WITH_LEAF_NODE_BV
 
   // serialize tree, leaf_samples, leaf_node_bv, left_most_i, height
   ulint serialize(std::ostream& out) {
@@ -439,15 +493,19 @@ public:
     out.write((char*)leaf_samples.data(), leaf_samples.size()*sizeof(leaf_samples[0]));
     w_bytes += sizeof(leaf_samples[0])*leaf_samples.size();
 
+#ifdef WITH_LEAF_NODE_BV 
     w_bytes += leaf_node_bv.serialize(out);
+#endif//WITH_LEAF_NODE_BV
     w_bytes += sdsl::serialize(left_most_i, out);
     w_bytes += sdsl::serialize(height, out);
 
+#ifdef BISIMULATE_CSA_TREE
     w_bytes += m_classic_tree.serialize(out);
 
     w_bytes += sdsl::serialize(m_tree_pointers.size(), out);
     out.write((char*)m_tree_pointers.data(), m_tree_pointers.size()*sizeof(m_tree_pointers[0]));
     w_bytes += sizeof(m_tree_pointers[0])*m_tree_pointers.size();
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
     return w_bytes;
   }
 
@@ -463,16 +521,20 @@ public:
     leaf_samples.resize(temp_size);
     in.read((char*)leaf_samples.data(), temp_size*sizeof(leaf_samples[0]));
 
+#ifdef WITH_LEAF_NODE_BV 
     leaf_node_bv.load(in);
+#endif//WITH_LEAF_NODE_BV
 
     in.read((char*)&left_most_i, sizeof(left_most_i));
     in.read((char*)&height, sizeof(height));
 
+#ifdef BISIMULATE_CSA_TREE
     m_classic_tree.load(in);
 
     in.read((char*)&temp_size, sizeof(temp_size));
     m_tree_pointers.resize(temp_size);
     in.read((char*)m_tree_pointers.data(), temp_size*sizeof(m_tree_pointers[0]));
+#endif//BISIMULATE_CSA_TREE_CSA_TREE
   }
 };
 }
