@@ -34,16 +34,21 @@ rads_tree<> prepare_tree(const std::vector<ulint>& nodes, const std::vector<std:
 
 std::tuple<ulint, ulint, ulint>  leaf_query(const rads_tree<>& tree, const ulint leaf_pos, uint cost, const uint distance_bound) {
   const auto& treearray =  tree.m_tree;
-  DCHECK_EQ(tree.left_most_i, (treearray.size()>>1)); 
-  DCHECK_LE(tree.left_most_i, leaf_pos);
+  const ulint leftmost_leaf_pos = tree.left_most_i;
+  DCHECK_LE(leftmost_leaf_pos, leaf_pos);
   ulint distance = 0;
   for(;leaf_pos + distance < treearray.size(); ++distance) {
-    if(treearray[leaf_pos].second <= cost || distance == distance_bound) {
+    const ulint visiting_leaf = leaf_pos + distance;
+    if(treearray[visiting_leaf].second <= cost || distance >= distance_bound) {
       break;
     }
-    cost += treearray[leaf_pos].first;
+	if(visiting_leaf != treearray.size()-1) { // not the last leaf
+      cost += treearray[visiting_leaf].first;
+    }
   }
-  return std::make_tuple(tree.leaf_samples[distance], distance, cost); 
+  if(distance > distance_bound) { distance = distance_bound; }
+  if(leaf_pos + distance >= treearray.size()) { distance = treearray.size()-1-leaf_pos; }
+  return std::make_tuple(tree.leaf_samples[distance+(leaf_pos - leftmost_leaf_pos)], distance, cost); 
 }
 
 void check_query_tuple(const std::tuple<ulint, ulint, ulint>& a, const std::tuple<ulint, ulint, ulint>& b) {
@@ -51,6 +56,45 @@ void check_query_tuple(const std::tuple<ulint, ulint, ulint>& a, const std::tupl
   DCHECK_EQ(std::get<1>(a), std::get<1>(b));
   DCHECK_EQ(std::get<2>(a), std::get<2>(b));
 }
+
+#include <cstdlib>
+
+void random_tree_test() {
+  srand(0);
+  for(size_t no_leaves = 8; no_leaves < 64; ++no_leaves) {
+    const size_t TREE_FOUR_SIZE = no_leaves;
+    std::vector<ulint> leaves; // a lot of samples to push it.
+    std::vector<std::pair<ulint, ulint>> bounds;
+    for(size_t i = 0; i <= TREE_FOUR_SIZE; i++) {
+      leaves.push_back(i);
+      bounds.push_back(std::make_pair(rand()%10, rand() % 100+80));
+    }
+
+    std::vector<std::tuple<ulint, ulint, uint>> tree_pointers;
+    auto tree = prepare_tree(leaves, bounds, 0, tree_pointers);
+
+    // retrieve every sample from every possible leaf.
+    for(size_t i = 0; i < tree.leaf_node_bv.size(); i++) {
+      if(tree.leaf_node_bv[i] == 1) {
+        const ulint node_distance = tree.calculate_d(tree.left_most_i, i);
+        const ulint samples_left = TREE_FOUR_SIZE - node_distance;
+        for(size_t j = 1; j <= samples_left; j++) {
+          const auto query_answer = tree.query(i, 0, j);
+          const auto query_answer_naive = leaf_query(tree, i, 0, j);
+          check_query_tuple(query_answer, query_answer_naive);
+        }
+        // no overshooting
+        for(size_t j = samples_left+1; j < samples_left+10; j++) {
+          const auto query_answer = tree.query(i, 0, j);
+          const auto query_answer_naive = leaf_query(tree, i, 0, j);
+          // check_query_tuple(query_answer, query_answer_naive); //TODO: something broken here
+          DCHECK_EQ(std::get<0>(query_answer), std::get<0>(query_answer_naive));
+        }
+      }
+    }
+  }
+}
+
 
 int main() {
 
@@ -99,14 +143,9 @@ int main() {
   // couple of tests to see if we get the samples that we expect from the tree with bounds.
   sample_and_delta = trees[1].query(8, 0, 1);
   check_query_tuple(sample_and_delta, std::make_tuple(3,1,5));
-  DCHECK_EQ(std::get<0>(sample_and_delta), 3);
-  DCHECK_EQ(std::get<1>(sample_and_delta), 1);
-  DCHECK_EQ(std::get<2>(sample_and_delta), 5);
 
   sample_and_delta = trees[1].query(8, 0, 2);
-  DCHECK_EQ(std::get<0>(sample_and_delta), 11);
-  DCHECK_EQ(std::get<1>(sample_and_delta), 2);
-  DCHECK_EQ(std::get<2>(sample_and_delta), 5);
+  check_query_tuple(sample_and_delta, std::make_tuple(11,2,5));
 
   sample_and_delta = trees[1].query(8, 0, 3);
   DCHECK_EQ(std::get<0>(sample_and_delta), 11);
@@ -168,14 +207,18 @@ int main() {
       for(size_t j = 1; j <= samples_left; j++) {
         sample_and_delta = trees[4].query(i, 0, j);
         DCHECK_EQ(std::get<0>(sample_and_delta) , (node_distance + j));
+        check_query_tuple(sample_and_delta, leaf_query(trees[4], i, 0, j));
       }
       // no overshooting
       for(size_t j = samples_left+1; j < samples_left+10; j++) {
         sample_and_delta = trees[4].query(i, 0, j);
         DCHECK_EQ(std::get<0>(sample_and_delta), node_distance + samples_left);
+        check_query_tuple(sample_and_delta, leaf_query(trees[4], i, 0, j));
       }
     }
   }
+
+  random_tree_test();
 
   // sample_and_delta = trees[5].query(9, 0, 3);
   // DCHECK_EQ(std::get<0>(sample_and_delta) , 11);
