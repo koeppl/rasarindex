@@ -30,7 +30,7 @@ public:
   using cost_type = ulint;
   using limit_type = long long int;
 
-  Vector<std::pair<cost_type, limit_type>> tree; // nodes are pairs that represent: (edge cost, edge threshold).
+  Vector<std::pair<cost_type, limit_type>> m_tree; // nodes are pairs that represent: (edge cost, edge threshold).
   Vector<ulint> leaf_samples; //@ stores the SA sample values of the leaves represented by run indices
 #ifdef WITH_LEAF_NODE_BV 
   sparse_bv_type leaf_node_bv; // bv telling us which node is a leaf node //TODO: can be removed!
@@ -62,7 +62,7 @@ public:
     DCHECK_LE(n, number_of_perfect_leaves);
     const size_t round_off = number_of_perfect_leaves - n; //@ number of excess nodes from the next power of two
     const size_t number_of_perfect_nodes = (1ULL<<(height + 1));
-    tree = decltype(tree)(number_of_perfect_nodes - round_off, std::make_pair(0, -1)); // tree size initialization, default the costs to -1
+    m_tree = decltype(m_tree)(number_of_perfect_nodes - round_off, std::make_pair(0, -1)); // tree size initialization, default the costs to -1
 
     auto temp_leaf_bv = vector<bool>(number_of_perfect_nodes, false); //TODO
 
@@ -75,16 +75,18 @@ public:
     for(size_t i = 0; i < left_most_i; ++i) {
       DCHECK_EQ(leaf_node_bv[i], false);
     }
-    for(size_t i = left_most_i; i < tree.size(); ++i) {
+    for(size_t i = left_most_i; i < m_tree.size(); ++i) {
       DCHECK_EQ(leaf_node_bv[i], true);
     }
 #endif//WITH_LEAF_NODE_BV
   }
 
   rads_tree(const rads_tree &other_tree) {
-    this->tree = other_tree.tree;
+    this->m_tree = other_tree.m_tree;
     this->leaf_samples = other_tree.leaf_samples;
+#ifdef WITH_LEAF_NODE_BV 
     this->leaf_node_bv = other_tree.leaf_node_bv;
+#endif//WITH_LEAF_NODE_BV
     this->left_most_i = other_tree.left_most_i;
     this->height = other_tree.height;
 #ifdef BISIMULATE_CSA_TREE
@@ -94,7 +96,7 @@ public:
   }
 
   rads_tree(rads_tree &&other_tree) noexcept
-  : tree(move(other_tree.tree))
+  : m_tree(move(other_tree.m_tree))
   , leaf_samples(move(other_tree.leaf_samples))
 #ifdef WITH_LEAF_NODE_BV 
   , leaf_node_bv(move(other_tree.leaf_node_bv))
@@ -112,7 +114,7 @@ public:
   }
 
   rads_tree& operator=(rads_tree &&other_tree) {
-    swap(tree, other_tree.tree);
+    swap(m_tree, other_tree.m_tree);
     swap(leaf_samples, other_tree.leaf_samples);
 #ifdef WITH_LEAF_NODE_BV 
     swap(leaf_node_bv, other_tree.leaf_node_bv);
@@ -138,9 +140,9 @@ public:
   */
   void constructor_helper(const std::vector<std::pair<ulint, ulint>> &bounds, const size_t node, const size_t begin, const size_t end, const uint tree_num, std::vector<std::tuple<ulint, ulint, uint>> &tree_pointers, std::vector<bool> &leaf_bv) {
     if(begin >= end) { // condition which creates the leaf nodes.
-      if(node < tree.size()) {
-        tree[node].first = bounds[leaf_samples[begin]].first; // edge cost
-        tree[node].second = bounds[leaf_samples[begin]].second; // edge threshold
+      if(node < m_tree.size()) {
+        m_tree[node].first = bounds[leaf_samples[begin]].first; // edge cost
+        m_tree[node].second = bounds[leaf_samples[begin]].second; // edge threshold
         if(begin != leaf_samples.size()-1) { // if it is not the last sample in the tree, add a tree pointer to be used when querying
           tree_pointers.push_back(std::make_tuple(leaf_samples[begin], tree_num, node));
         }
@@ -153,9 +155,9 @@ public:
 
     constructor_helper(bounds, 2*node, begin, mid, tree_num, tree_pointers, leaf_bv); // construct left child
     constructor_helper(bounds, 2*node+1, mid+1, end, tree_num, tree_pointers, leaf_bv); // construct right child
-    if(2*node+1 < tree.size()) {
-      tree[node].first = tree[2*node].first + tree[2*node+1].first; // edge sum of left and right child
-      tree[node].second = std::min<limit_type>(tree[2*node].second, tree[2*node+1].second - tree[2*node].first); // edge threshold
+    if(2*node+1 < m_tree.size()) {
+      m_tree[node].first = m_tree[2*node].first + m_tree[2*node+1].first; // edge sum of left and right child
+      m_tree[node].second = std::min<limit_type>(m_tree[2*node].second, m_tree[2*node+1].second - m_tree[2*node].first); // edge threshold
     }
   }
 
@@ -177,7 +179,6 @@ public:
     // when you go to a parent do not collect the cost, that is if the parent has the same left most node.
     // if youre moving to a subtree where the leftmost node is not the same then we have to collect the money.
    
-  DCHECK(false);
 
 // #ifdef BISIMULATE_CSA_TREE
 //     const auto initial_cost = cost;
@@ -197,7 +198,7 @@ public:
 
     // climb up while the upper_bounds let us / climb up at least once if we are still at the start node
     ulint current_leftmost_node = (node_pos << (height - current_height));
-    while(((node_pos != 1) && (tree[node_pos].second > 0) && (cost < tree[node_pos].second)) || (start_pos == node_pos)) {
+    while(((node_pos != 1) && (m_tree[node_pos].second > 0) && (cost < m_tree[node_pos].second)) || (start_pos == node_pos)) {
       const auto last_bit = (node_pos & 1);
 
       // if we are on the right branch of nodes do not climb anymore
@@ -216,12 +217,12 @@ public:
       if(node_pos>>(__builtin_ctzl(~node_pos)) == 2) {
         node_pos = 3;
         current_height = 1;
-        cost += tree[prev_pos].first;
+        cost += m_tree[prev_pos].first;
         descend(start_pos, node_pos, cost, d, current_height);
-        if(node_pos >= tree.size()) {
+        if(node_pos >= m_tree.size()) {
           node_pos--;
-          cost -= tree[node_pos].first;
-          DCHECK_LT(node_pos, tree.size());
+          cost -= m_tree[node_pos].first;
+          DCHECK_LT(node_pos, m_tree.size());
         }
         ulint distance = calculate_d(start_pos, node_pos);
         ulint leaf_sample_index = calculate_d(left_most_i, node_pos);
@@ -235,7 +236,7 @@ public:
       else {
         // right node goes up and right
         if(node_pos != start_pos) { // check parent node if we are no longer at our start position
-          if((tree[node_pos >> 1].second > 0) && (cost < tree[node_pos >> 1].second)) {
+          if((m_tree[node_pos >> 1].second > 0) && (cost < m_tree[node_pos >> 1].second)) {
             node_pos = (node_pos >> 1) + 1;
           }
           else {
@@ -244,7 +245,7 @@ public:
         }
         else {
           node_pos = (node_pos >> 1) + 1;
-          DCHECK_LT(node_pos, tree.size());
+          DCHECK_LT(node_pos, m_tree.size());
         }
       }
 
@@ -252,7 +253,7 @@ public:
 
       // moved to a subtree where the left most node is not the same, therefore we collect
       if((node_pos << (height - current_height)) != current_leftmost_node) {
-        cost += tree[prev_pos].first;
+        cost += m_tree[prev_pos].first;
         current_leftmost_node = (node_pos << (height - current_height));
       }
 
@@ -267,30 +268,30 @@ public:
     if(last_bit == 1) {
       while(node_pos < left_most_i) { //@ while node is an internal node
       // while(node_pos < leaf_node_bv.size() && !leaf_node_bv[node_pos]) {
-        if(node_pos >= tree.size() || !(tree[node_pos].second > 0) || !(cost < tree[node_pos].second)) { // this means we keep getting denied
+        if(node_pos >= m_tree.size() || !(m_tree[node_pos].second > 0) || !(cost < m_tree[node_pos].second)) { // this means we keep getting denied
           node_pos = (node_pos << 1);
           current_height += 1;
         }
         else {
           node_pos = (node_pos << 1) + 1; // once we find a bound that were allowed to go through, go to the right child.
           current_height += 1;
-          cost += tree[node_pos - 1].first;
+          cost += m_tree[node_pos - 1].first;
           descend(start_pos, node_pos, cost, d, current_height); // descend using new node_pos, cost, and d
           break;
         }
       }
     }
     else {
-      cost += tree[node_pos << 1].first; // add cost of node that denies us
-      node_pos = std::min((node_pos << 1) + 1, tree.size()-1); // move node_pos to the right child of the current node // or should it be the left child of the node
+      cost += m_tree[node_pos << 1].first; // add cost of node that denies us
+      node_pos = std::min((node_pos << 1) + 1, m_tree.size()-1); // move node_pos to the right child of the current node // or should it be the left child of the node
       current_height += 1;
       descend(start_pos, node_pos, cost, d, current_height); // descend using new node_pos, cost, and d
     }
 
     bool overshoot = false;
-    if(node_pos >= tree.size()) {  // no overshooting
-      node_pos = tree.size()-1; 
-      cost -= tree[node_pos].first;
+    if(node_pos >= m_tree.size()) {  // no overshooting
+      node_pos = m_tree.size()-1; 
+      cost -= m_tree[node_pos].first;
       overshoot = true;
     }
 
@@ -329,11 +330,11 @@ public:
     DCHECK_LE(current_height, height);
     ulint prev_pos = node_pos;
 
-    while(node_pos < tree.size()) { // while we are in the bounds of the tree and not at a leaf node
+    while(node_pos < m_tree.size()) { // while we are in the bounds of the tree and not at a leaf node
       const auto last_bit = (node_pos & 1);
       prev_pos = node_pos;
       if(last_bit == 0) { // left node descent
-        if(node_pos < tree.size() && (tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right sibling
+        if(node_pos < m_tree.size() && (m_tree[node_pos].second > 0) && (cost < m_tree[node_pos].second)) { // if good, go to right sibling
           const ulint min_node = ((node_pos + 1) << (height - current_height));
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
@@ -342,15 +343,15 @@ public:
             if(current_height == height) { break; }
             node_pos = node_pos << 1;
             node_pos += 1;
-            DCHECK_LT(node_pos, tree.size());
+            DCHECK_LT(node_pos, m_tree.size());
             current_height += 1;
-            cost += tree[node_pos - 1].first;
+            cost += m_tree[node_pos - 1].first;
           }
           else {
             // go to right sibling
-            if(node_pos + 1 == tree.size()) { break; } // already at the last leaf
+            if(node_pos + 1 == m_tree.size()) { break; } // already at the last leaf
             node_pos += 1;
-            cost += tree[prev_pos].first;
+            cost += m_tree[prev_pos].first;
           }
         }
         else { // if not good then go to left child and check on next iteration
@@ -361,29 +362,29 @@ public:
         }
       }
       else { // right node descend
-        if((tree[node_pos].second > 0) && (cost < tree[node_pos].second)) { // if good, go to right child
+        if((m_tree[node_pos].second > 0) && (cost < m_tree[node_pos].second)) { // if good, go to right child
           const ulint min_node = (node_pos << (height - current_height)); // this is how you can get the left mode node of the current subtree
           const auto min_d_travelled = calculate_d(start_pos, min_node);
           if(d < min_d_travelled) {
             // right node doesn't have sample. go back to left child
             node_pos -= 1;
-            cost -= tree[node_pos].first;
+            cost -= m_tree[node_pos].first;
             continue;
           }
 
           if(current_height == height) { break; }
           current_height += 1;
-          cost += tree[node_pos << 1].first;
+          cost += m_tree[node_pos << 1].first;
           node_pos = (node_pos << 1) + 1;
-          DCHECK_LT(node_pos, tree.size());
+          DCHECK_LT(node_pos, m_tree.size());
         }
         else {
           // if not good then go to left child
           if(current_height == height) { break; }
           current_height += 1;
           node_pos = node_pos << 1;
-          // if(node_pos < tree.size()) { --node_pos; } // do not overshoot
-          // DCHECK_LT(node_pos, tree.size());
+          // if(node_pos < m_tree.size()) { --node_pos; } // do not overshoot
+          // DCHECK_LT(node_pos, m_tree.size());
         }
       }
     }
@@ -396,7 +397,7 @@ public:
     const ulint min_d_travelled = calculate_d(start_pos, min_node);
     if(d < min_d_travelled) {
       node_pos -= 1;
-      cost -= tree[node_pos].first;
+      cost -= m_tree[node_pos].first;
       descend(start_pos, node_pos, cost, d, current_height); // descend again just in case there is tree left to be traversed
     }
   }
@@ -435,16 +436,16 @@ public:
   */
   ulint calculate_d(ulint start_pos, ulint end_pos) {
     DCHECK_LE(start_pos, end_pos);
-    const auto ret = std::min(end_pos,tree.size())-start_pos;
+    const auto ret = std::min(end_pos,m_tree.size())-start_pos;
 
 #ifdef WITH_LEAF_NODE_BV
     DCHECK_EQ(ret, calculate_d_debug(start_pos, end_pos)); //TODO
 #endif//WITH_LEAF_NODE_BV
-    return std::min(end_pos,tree.size())-start_pos;
+    return std::min(end_pos,m_tree.size())-start_pos;
   }
 
   void print_tree_info() {
-    cout << "tree size: " << tree.size() << endl;
+    cout << "m_tree size: " << m_tree.size() << endl;
     cout << "# of samples: " << leaf_samples.size() << endl;
     print_bounds();
     print_samples();
@@ -456,9 +457,9 @@ public:
   }
 
   void print_bounds() {
-    cout << "tree bounds: ";
-    for (size_t i = 0; i < tree.size(); i++) {
-      cout << "[" << tree[i].first << "," << tree[i].second << "] ";
+    cout << "m_tree bounds: ";
+    for (size_t i = 0; i < m_tree.size(); i++) {
+      cout << "[" << m_tree[i].first << "," << m_tree[i].second << "] ";
     }
     cout << endl;
   }
@@ -485,9 +486,9 @@ public:
   ulint serialize(std::ostream& out) {
     ulint w_bytes = 0;
 
-    w_bytes += sdsl::serialize(tree.size(), out);
-    out.write((char*)tree.data(), tree.size()*sizeof(tree[0]));
-    w_bytes += sizeof(tree[0])*tree.size();
+    w_bytes += sdsl::serialize(m_tree.size(), out);
+    out.write((char*)m_tree.data(), m_tree.size()*sizeof(m_tree[0]));
+    w_bytes += sizeof(m_tree[0])*m_tree.size();
 
     w_bytes += sdsl::serialize(leaf_samples.size(), out);
     out.write((char*)leaf_samples.data(), leaf_samples.size()*sizeof(leaf_samples[0]));
@@ -514,8 +515,8 @@ public:
     size_t temp_size;
 
     in.read((char*)&temp_size, sizeof(temp_size));
-    tree.resize(temp_size);
-    in.read((char*)tree.data(), temp_size*sizeof(tree[0]));
+    m_tree.resize(temp_size);
+    in.read((char*)m_tree.data(), temp_size*sizeof(m_tree[0]));
 
     in.read((char*)&temp_size, sizeof(temp_size));
     leaf_samples.resize(temp_size);

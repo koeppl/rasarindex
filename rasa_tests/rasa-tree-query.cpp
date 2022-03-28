@@ -30,7 +30,26 @@ rads_tree<> prepare_tree(const std::vector<ulint>& nodes, const std::vector<std:
     }
 
     return rads_tree(nodes, bound_map, tree_id, tree_pointers);
+}
 
+std::tuple<ulint, ulint, ulint>  leaf_query(const rads_tree<>& tree, const ulint leaf_pos, uint cost, const uint distance_bound) {
+  const auto& treearray =  tree.m_tree;
+  DCHECK_EQ(tree.left_most_i, (treearray.size()>>1)); 
+  DCHECK_LE(tree.left_most_i, leaf_pos);
+  ulint distance = 0;
+  for(;leaf_pos + distance < treearray.size(); ++distance) {
+    if(treearray[leaf_pos].second <= cost || distance == distance_bound) {
+      break;
+    }
+    cost += treearray[leaf_pos].first;
+  }
+  return std::make_tuple(tree.leaf_samples[distance], distance, cost); 
+}
+
+void check_query_tuple(const std::tuple<ulint, ulint, ulint>& a, const std::tuple<ulint, ulint, ulint>& b) {
+  DCHECK_EQ(std::get<0>(a), std::get<0>(b));
+  DCHECK_EQ(std::get<1>(a), std::get<1>(b));
+  DCHECK_EQ(std::get<2>(a), std::get<2>(b));
 }
 
 int main() {
@@ -74,10 +93,12 @@ int main() {
   for(size_t i = 1; i <= 6; i++) {
     sample_and_delta = trees[0].query(trees[0].left_most_i, 0, i);
     DCHECK_EQ(std::get<0>(sample_and_delta) , i);
+    check_query_tuple(sample_and_delta, leaf_query(trees[0], trees[0].left_most_i, 0, i));
   }
 
   // couple of tests to see if we get the samples that we expect from the tree with bounds.
   sample_and_delta = trees[1].query(8, 0, 1);
+  check_query_tuple(sample_and_delta, std::make_tuple(3,1,5));
   DCHECK_EQ(std::get<0>(sample_and_delta), 3);
   DCHECK_EQ(std::get<1>(sample_and_delta), 1);
   DCHECK_EQ(std::get<2>(sample_and_delta), 5);
