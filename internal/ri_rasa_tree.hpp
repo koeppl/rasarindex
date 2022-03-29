@@ -10,8 +10,8 @@
 #include "vector.hpp"
 
 using namespace sdsl;
-#define BISIMULATE_CSA_TREE 1
-#define WITH_LEAF_NODE_BV 1
+// #define BISIMULATE_CSA_TREE 1
+// #define WITH_LEAF_NODE_BV 1
 
 namespace ri {
   template<class sparse_bv_type = sparse_sd_vector,
@@ -161,13 +161,46 @@ public:
     }
   }
 
+std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, const uint distance_bound, ulint = -1) {
+  {
+    // do
+   // 1. ascend to lowest ancestor having us as a left child
+   // 2. move right 
+   // until 
+  }
+  const ulint distance = leaf_query(leaf_pos, cost, distance_bound);
+  const ulint leftmost_leaf_pos = this->left_most_i;
+
+  return std::make_tuple(this->leaf_samples[distance+(leaf_pos - leftmost_leaf_pos)], distance, cost); 
+}
+
+ulint leaf_query(const ulint leaf_pos, uint& cost, const uint distance_bound) {
+  const auto& treearray =  this->m_tree;
+  const ulint leftmost_leaf_pos = this->left_most_i;
+  DCHECK_LE(leftmost_leaf_pos, leaf_pos);
+  ulint distance = 0;
+  for(;leaf_pos + distance < treearray.size(); ++distance) {
+    const ulint visiting_leaf = leaf_pos + distance;
+    if(treearray[visiting_leaf].second <= cost || distance >= distance_bound) {
+      break;
+    }
+	if(visiting_leaf != treearray.size()-1) { // not the last leaf
+      cost += treearray[visiting_leaf].first;
+    }
+  }
+  if(distance > distance_bound) { distance = distance_bound; }
+  if(leaf_pos + distance >= treearray.size()) { distance = treearray.size()-1-leaf_pos; }
+  return distance;
+}
+
+
   //! Query function.
   /*!
     \param node_pos Leaf node to begin traversal.
     \param cost Cost that we will carry and add to as we climb.
     \param d Distance that we would ideally travel.
   */
-  std::tuple<ulint, ulint, ulint> query(ulint node_pos, uint cost, uint d, 
+  std::tuple<ulint, ulint, ulint> tree_query(ulint node_pos, uint cost, uint d, 
 #ifdef BISIMULATE_CSA_TREE
       const ulint leaf_sample = -1
 #else
