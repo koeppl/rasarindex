@@ -11,7 +11,7 @@
 
 using namespace sdsl;
 // #define BISIMULATE_CSA_TREE 1
-// #define WITH_LEAF_NODE_BV 1
+#define WITH_LEAF_NODE_BV 1
 
 namespace ri {
   template<class sparse_bv_type = sparse_sd_vector,
@@ -161,20 +161,126 @@ public:
     }
   }
 
-std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, const uint distance_bound, ulint = -1) {
-  {
-    // do
-   // 1. ascend to lowest ancestor having us as a left child
-   // 2. move right 
-   // until 
-  }
-  const ulint distance = leaf_query(leaf_pos, cost, distance_bound);
-  const ulint leftmost_leaf_pos = this->left_most_i;
 
-  return std::make_tuple(this->leaf_samples[distance+(leaf_pos - leftmost_leaf_pos)], distance, cost); 
+bool can_traverse(const ulint node_id, const ulint cost) const {
+    return node_id < m_tree.size() && m_tree[node_id].second > cost;
 }
 
-ulint leaf_query(const ulint leaf_pos, uint& cost, const uint distance_bound) {
+ulint lowest_left_ancestor(const ulint node_id) const {
+      return node_id >> (__builtin_ctzl(~node_id));
+}
+
+ulint node_height(const ulint node_id) const {
+  DCHECK_GT(node_id, 0);
+  DCHECK_LT(sdsl::bits::hi(node_id),  tree_height());
+  return tree_height() - sdsl::bits::hi(node_id)-1;
+}
+uint tree_height() const {
+  DCHECK_GT(m_tree.size(), 0);
+    return sdsl::bits::hi(m_tree.size()-1)+1;
+}
+
+ulint leftmost_leaf() const {
+  const auto ret = 1ULL << (tree_height()-1);
+  DCHECK_EQ(ret, left_most_i);
+  return ret;
+}
+
+ulint leftmost_leaf(const ulint node_id) const {
+  return node_id<<node_height(node_id);
+}
+
+bool is_leaf(const ulint node_id) const {
+  return node_id >= leftmost_leaf();
+}
+
+ulint number_of_leaves(const ulint node_id) const {
+  return 1ULL<<node_height(node_id);
+}
+
+
+std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, const uint distance_bound, ulint = -1) const {
+  uint initial_cost = cost;
+  ulint visiting_node = leaf_pos;
+
+  auto remaining_distance = [&] () {
+    return distance_bound - (leftmost_leaf(visiting_node) - leaf_pos);
+  };
+  
+  if(!can_traverse(visiting_node, cost)) {
+    DCHECK(false);
+  }
+  // visiting_node+=1;
+  cost += m_tree[leaf_pos].first; 
+  if( (visiting_node & 1) == 0) {
+    visiting_node += 1;
+  } //! invariant: always start from a right child being a leaf
+
+  bool ascended = false;
+  //while(can_traverse(visiting_node, cost)) {
+  while(true) {
+    const auto left_ancestor = lowest_left_ancestor(visiting_node);
+    if(left_ancestor == 0) {
+      visiting_node = 1;
+      break;
+    }
+    visiting_node = left_ancestor;
+    if(!can_traverse(visiting_node, cost) || number_of_leaves(visiting_node) > remaining_distance()) {
+      break;
+    }
+    cost += m_tree[visiting_node+1].first; // take the costs of our right sibling
+    visiting_node >>= 1; //parent node
+                         ascended = true;
+  }
+  DCHECK_NE(visiting_node, leaf_pos);
+  DCHECK_LT(node_height(leaf_pos), node_height(visiting_node));
+  // if we cannot further climb up, go down again and to the right child
+  visiting_node <<=1;
+  visiting_node += 1;
+  if(ascended) {
+  cost -= m_tree[visiting_node].first; // revert adding the cost of our last right sibling
+  }
+
+  DCHECK_NE(lowest_left_ancestor(visiting_node), 1); //cannot go to right
+  while(can_traverse(visiting_node, cost) && node_height(visiting_node) == node_height(visiting_node+1) && number_of_leaves(visiting_node) <= remaining_distance()) {
+    cost += m_tree[visiting_node].first;
+    visiting_node += 1;
+  }
+
+  while(!is_leaf(visiting_node)) {
+    visiting_node <<= 1; //left child node 
+    DCHECK_EQ(visiting_node & 1, 0);
+    if(can_traverse(visiting_node, cost) && number_of_leaves(visiting_node) <= remaining_distance()) { // go to right child if possible
+      cost += m_tree[visiting_node].first;
+      visiting_node += 1; // right sibling
+      DCHECK_EQ(visiting_node & 1, 1);
+    }
+  }
+  ulint distance = visiting_node - leaf_pos;
+  const ulint leftmost_leaf_pos = this->left_most_i;
+
+  if(distance > distance_bound) { distance = distance_bound; }
+  if(leaf_pos + distance >= m_tree.size()) { distance = m_tree.size()-1-leaf_pos; }
+
+  const auto ret = std::make_tuple(this->leaf_samples[distance+(leaf_pos - leftmost_leaf_pos)], distance, cost); 
+
+  cost -= m_tree[visiting_node].first; //@ do not charge for the last node
+
+  {
+  const ulint leaf_distance = leaf_query(leaf_pos, initial_cost, distance_bound);
+  const auto myret = std::make_tuple(this->leaf_samples[leaf_distance+(leaf_pos - leftmost_leaf_pos)], leaf_distance, initial_cost); 
+  check_query_tuple(ret, myret);
+  }
+  return ret;
+}
+
+static void check_query_tuple(const std::tuple<ulint, ulint, ulint>& a, const std::tuple<ulint, ulint, ulint>& b)  {
+  DCHECK_EQ(std::get<0>(a), std::get<0>(b));
+  DCHECK_EQ(std::get<1>(a), std::get<1>(b));
+  DCHECK_EQ(std::get<2>(a), std::get<2>(b));
+}
+
+ulint leaf_query(const ulint leaf_pos, uint& cost, const uint distance_bound) const {
   const auto& treearray =  this->m_tree;
   const ulint leftmost_leaf_pos = this->left_most_i;
   DCHECK_LE(leftmost_leaf_pos, leaf_pos);
