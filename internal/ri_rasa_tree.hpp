@@ -162,8 +162,10 @@ public:
   }
 
 
-bool can_traverse(const ulint node_id, const ulint cost) const {
-    return node_id < m_tree.size() && m_tree[node_id].second > cost;
+bool can_traverse(const ulint node_id, const cost_type cost) const {
+    return node_id < m_tree.size() 
+      && m_tree[node_id].second >= 0  //@ costs are signed, so first check whether we can scale it up to unsigned
+      && m_tree[node_id].second > cost;
 }
 
 ulint lowest_left_ancestor(const ulint node_id) const {
@@ -199,7 +201,8 @@ ulint number_of_leaves(const ulint node_id) const {
 }
 
 
-std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, const uint distance_bound, ulint = -1) const {
+std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, uint distance_bound, ulint = -1) const {
+  if(leaf_pos + distance_bound >= m_tree.size()) { distance_bound = m_tree.size()-leaf_pos-1;  } //@ no overshooting
   uint initial_cost = cost;
   ulint visiting_node = leaf_pos;
 
