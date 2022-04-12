@@ -201,11 +201,11 @@ ulint number_of_leaves(const ulint node_id) const {
 }
 
 
-std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, uint distance_bound, ulint = -1) const {
+std::tuple<ulint, ulint, ulint>  query(const ulint leaf_pos, uint cost, uint distance_bound) const {
   if(leaf_pos + distance_bound >= m_tree.size()) { distance_bound = m_tree.size()-leaf_pos-1;  } //@ no overshooting
   uint initial_cost = cost;
 
-  if(distance_bound < 16) { //@ distance to small 
+  if(distance_bound < 32) { //@ distance to small 
     const ulint leaf_distance = leaf_query(leaf_pos, initial_cost, distance_bound);
     const ulint leftmost_leaf_pos = this->left_most_i;
     const auto ret = std::make_tuple(this->leaf_samples[leaf_distance+(leaf_pos - leftmost_leaf_pos)], leaf_distance, initial_cost); 
