@@ -4,9 +4,9 @@
 #include <stack>
 #include <unordered_map>
 #include <unordered_set>
-#include <definitions.hpp>
-#include <r_index.hpp>
-#include <ri_rasa_tree.hpp>
+#include "definitions.hpp"
+#include "r_index.hpp"
+#include "ri_rasa_tree.hpp"
 #include "sparse_sd_vector.hpp"
 #include "sparse_hyb_vector.hpp"
 
@@ -307,7 +307,8 @@ public:
 
       // check if pred is in a cycle
       // if on the last iteration (d == 1) just iterate phi
-      if(trees_bv[pred_to_run[sa_jr]] && d != 1) {
+      if(d > 100000 && trees_bv[pred_to_run[sa_jr]] && d != 1) {
+        // cout << "OK" << std::endl;
         const auto current_run = pred_to_run[sa_jr];
         const std::tuple<ulint, ulint, uint>& tree_info = tree_pointers[trees_bv.rank(current_run)]; // get the tree that the sample belongs to.
         const std::tuple<ulint, ulint, ulint> sa_prime_d_cost = trees[std::get<1>(tree_info)].query(std::get<2>(tree_info), cost, d); // tuple containing new sample run, distance travelled, and cost accumulated

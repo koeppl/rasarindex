@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 
   // string bwt = idx.get_bwt();
   // rle_string rle_bwt = rle_string(bwt);
-  const auto text_length = idx.bwt.size();
+  // const auto text_length = idx.bwt.size();
 
 
   std::cerr << "index, bwt, and rle loaded." << endl;

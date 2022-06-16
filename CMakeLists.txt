@@ -154,6 +154,13 @@ TARGET_LINK_LIBRARIES(rasa-query divsufsort64)
 TARGET_LINK_LIBRARIES(rasa-query z)
 TARGET_LINK_LIBRARIES(rasa-query klib)
 
+add_executable(extract_ssa ./rasa_tests/extract_ssa.cpp)
+TARGET_LINK_LIBRARIES(extract_ssa sdsl)
+TARGET_LINK_LIBRARIES(extract_ssa divsufsort)
+TARGET_LINK_LIBRARIES(extract_ssa divsufsort64)
+TARGET_LINK_LIBRARIES(extract_ssa z)
+TARGET_LINK_LIBRARIES(extract_ssa klib)
+
 add_executable(ri-rads-test ./rasa_tests/ri-rads-test.cpp)
 TARGET_LINK_LIBRARIES(ri-rads-test sdsl)
 TARGET_LINK_LIBRARIES(ri-rads-test divsufsort)

@@ -1,8 +1,9 @@
 #include "../internal/rle_string.hpp"
 #include "../internal/r_index.hpp"
 #include "../internal/utils.hpp"
+#include <bits/stdint-uintn.h>
 
-ulint access_sa(ri::r_index<>& idx, uint query_index) {
+inline ulint access_sa(ri::r_index<>& idx, uint64_t query_index) {
   auto& rle_bwt = idx.bwt;
   const ulint run = rle_bwt.run_of_position(query_index); // run number
   const ulint j = rle_bwt.run_range(run).second; // run ends at this value
