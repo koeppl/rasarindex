@@ -1,4 +1,4 @@
-# 🗂️e  Accessing the Suffix Array via Φ−1 Forest
+# 🗂️  Accessing the Suffix Array via Φ−1 Forest
 
 
 ## ✔️ Prerequisites
